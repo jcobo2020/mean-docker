@@ -54,16 +54,16 @@ export class LoginComponent implements OnInit {
                     loginForm.controls.userName.value,
                     loginForm.controls.password.value
                 )
-                .subscribe(
-                    (data) => {
+                .subscribe({
+                    next: (data) => {
                         this.loading = false;
                         this.router.navigate([this.returnUrl]);
                     },
-                    (error) => {
+                    error: (error) => {
                         this.toastrService.error(error);
                         this.loading = false;
                     }
-                );
+                });
         } else {
             this.toastrService.error('Please enter valid credentails');
         }
