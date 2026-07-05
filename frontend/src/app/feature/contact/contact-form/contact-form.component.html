@@ -23,7 +23,7 @@
                         <form [formGroup]="contactForm" class="row g-3">
                             <div class="col-sm-6 col-md-6">
                                 <label for="firstName" class="form-label"
-                                    >First Name</label
+                                    >Nombres</label
                                 >
                                 <input
                                     type="text"
@@ -33,7 +33,7 @@
                             </div>
                             <div class="col-sm-6 col-md-6">
                                 <label for="lastName" class="form-label"
-                                    >Last Name</label
+                                    >Apellidos</label
                                 >
                                 <input
                                     type="text"
@@ -63,7 +63,7 @@
                             </div>
                             <div class="col-sm-6 col-md-6">
                                 <label for="city" class="form-label"
-                                    >City</label
+                                    >Ciudad</label
                                 >
                                 <input
                                     type="text"
@@ -73,7 +73,7 @@
                             </div>
                             <div class="col-sm-6 col-md-6">
                                 <label for="postalCode" class="form-label"
-                                    >Postal Code</label
+                                    >Codigo Postal</label
                                 >
                                 <input
                                     type="text"
@@ -99,13 +99,13 @@
                                             [disabled]="contactForm.invalid"
                                             (click)="submit()"
                                         >
-                                            Save
+                                            Grabar
                                         </button>
                                         <button
                                             class="btn btn-secondary"
                                             (click)="reset()"
                                         >
-                                            Reset
+                                            Limpiar
                                         </button>
                                     </div>
                                 </div>
