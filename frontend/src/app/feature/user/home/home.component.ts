@@ -54,7 +54,7 @@ export class HomeComponent {
             icon: 'fa-brands fa-docker',
             name: 'Docker',
             description: 'Containerization platform for consistent development and deployment.',
-            color: '#2496ed'
+            color: '#339933'
         },
         {
             icon: 'fa-brands fa-bootstrap',
