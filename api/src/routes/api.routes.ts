@@ -1,7 +1,14 @@
 import { Router } from 'express';
 import UserController from '../controllers/UserController';
 import ContactController from '../controllers/ContactController';
+import ClientController from '../controllers/ClientController';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { authenticate } from '../middlewares/authenticate.middleware';
+import { requireAdmin } from '../middlewares/requireAdmin.middleware';
+import {
+  validateCreateClient,
+  validateClientId
+} from '../validators/client.validators';
 
 const router = Router();
 
@@ -88,5 +95,23 @@ router.route('/contact/:contact_id')
   .get(authMiddleware, ContactController.getContactById)
   .put(authMiddleware, ContactController.updateContact)
   .delete(authMiddleware, ContactController.deleteContact);
+
+router
+  .route('/clients')
+  .post(
+    authenticate,
+    requireAdmin,
+    validateCreateClient,
+    ClientController.create
+  );
+
+router
+  .route('/clients/:id')
+  .delete(
+    authenticate,
+    requireAdmin,
+    validateClientId,
+    ClientController.deactivate
+  );
 
 export default router;

@@ -1,5 +1,7 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
+export type UserRole = 'admin' | 'user';
+
 // Define the interface for User document
 export interface IUser extends Document {
   firstName: string;
@@ -9,6 +11,7 @@ export interface IUser extends Document {
   token?: string;
   email?: string;
   mobile?: string;
+  role: UserRole;
   create_date: Date;
 }
 
@@ -34,6 +37,11 @@ const UserSchema: Schema = new Schema({
   token: String,
   email: String,
   mobile: String,
+  role: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'user'
+  },
   create_date: {
     type: Date,
     default: Date.now

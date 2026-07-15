@@ -72,7 +72,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ## Usage
 
-The load balancer is configured in the `docker-compose.nginx.yml` file at the root of the project:
+The load balancer is configured in the `docker/docker-compose.nginx.yml` file:
 
 ```yaml
 nginx:
