@@ -190,7 +190,7 @@ cd mean-docker
 cp .env.example .env
 
 # 3. Start the application
-docker-compose -f docker-compose.nginx.yml up
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml up
 ```
 
 > **Ready in under 2 minutes!** Open [http://localhost](http://localhost) in your browser.
@@ -215,7 +215,7 @@ Password: P@ssword#321
 3 containers running on separate ports.
 
 ```bash
-docker-compose up
+docker-compose --env-file .env -f docker/docker-compose.yml up
 ```
 
 | Service | URL |
@@ -232,7 +232,7 @@ docker-compose up
 4 containers with Nginx gateway.
 
 ```bash
-docker-compose -f docker-compose.nginx.yml up
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml up
 ```
 
 | Service | URL |

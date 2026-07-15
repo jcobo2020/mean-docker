@@ -146,7 +146,7 @@ docker run -p 3000:3000 contacts-api
 
 Or use docker-compose:
 ```bash
-docker-compose up
+docker-compose --env-file .env -f docker/docker-compose.api.yml up
 ```
 
 ## API Documentation

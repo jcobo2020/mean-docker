@@ -59,7 +59,7 @@ cp .env.example .env
 
 Start the application:
 ```bash
-docker-compose -f docker-compose.nginx.yml up
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml up
 ```
 
 That's it! Visit [http://localhost](http://localhost) in your browser.
@@ -76,7 +76,7 @@ That's it! Visit [http://localhost](http://localhost) in your browser.
 
 ### Single Entry Point Architecture
 
-When using the `docker-compose.nginx.yml` configuration, all traffic flows through a single port (80):
+When using the `docker/docker-compose.nginx.yml` configuration, all traffic flows through a single port (80):
 
 - **Single Exposed Port**: Only port 80 is exposed to the outside world
 - **Unified Access Point**: Both UI and API requests enter through Nginx

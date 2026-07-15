@@ -4,22 +4,22 @@ export interface AppError extends Error {
   statusCode?: number;
 }
 
+/**
+ * Global error handler — never leaks stack or internal details to the client (§7.11).
+ */
 export const errorHandler = (
   err: AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
-  const statusCode = err.statusCode || 500;
-  
-  res.status(statusCode).json({
+  console.error(err);
+  res.status(500).json({
     status: 'error',
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    message: 'Internal server error'
   });
 };
 
-// Not found middleware
 export const notFound = (req: Request, res: Response, next: NextFunction) => {
   const error = new Error(`Not Found - ${req.originalUrl}`) as AppError;
   error.statusCode = 404;

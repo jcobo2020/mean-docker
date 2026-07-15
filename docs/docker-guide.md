@@ -116,7 +116,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ## Docker Compose Files
 
-### Standard Docker Compose (docker-compose.yml)
+### Standard Docker Compose (docker/docker-compose.yml)
 
 This configuration runs the application with direct API access (no Nginx):
 
@@ -191,7 +191,7 @@ networks:
 - **Volume mapping**: Database persistence and development hot-reloading
 - **Environment variables**: Used for service configuration and MongoDB credentials
 
-### Nginx Docker Compose (docker-compose.nginx.yml)
+### Nginx Docker Compose (docker/docker-compose.nginx.yml)
 
 This configuration adds Nginx as a reverse proxy for both the frontend and API:
 
@@ -397,36 +397,36 @@ The Docker setup follows these best practices:
 
 ```bash
 # With Nginx (recommended)
-docker-compose -f docker-compose.nginx.yml up -d
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml up -d
 
 # Without Nginx
-docker-compose up -d
+docker-compose --env-file .env -f docker/docker-compose.yml up -d
 
 # Using pre-built images
-docker-compose -f docker-compose.hub.yml up -d
+docker-compose --env-file .env -f docker/docker-compose.hub.yml up -d
 ```
 
 ### Viewing Logs
 
 ```bash
 # All containers
-docker-compose -f docker-compose.nginx.yml logs -f
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml logs -f
 
 # Specific container
-docker-compose -f docker-compose.nginx.yml logs -f api
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml logs -f api
 ```
 
 ### Stopping the Application
 
 ```bash
-docker-compose -f docker-compose.nginx.yml down
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml down
 ```
 
 ### Rebuilding Containers
 
 ```bash
-docker-compose -f docker-compose.nginx.yml build
-docker-compose -f docker-compose.nginx.yml up -d
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml build
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml up -d
 ```
 
 ## Troubleshooting
@@ -435,7 +435,7 @@ docker-compose -f docker-compose.nginx.yml up -d
 
 Check the logs for errors:
 ```bash
-docker-compose -f docker-compose.nginx.yml logs <service-name>
+docker-compose --env-file .env -f docker/docker-compose.nginx.yml logs <service-name>
 ```
 
 ### Can't Connect to MongoDB
@@ -456,7 +456,7 @@ In the Nginx setup, verify:
 
 Use BuildKit for faster builds:
 ```bash
-DOCKER_BUILDKIT=1 docker-compose -f docker-compose.nginx.yml build
+DOCKER_BUILDKIT=1 docker-compose --env-file .env -f docker/docker-compose.nginx.yml build
 ```
 
 ## Conclusion
