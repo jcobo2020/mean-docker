@@ -5,7 +5,7 @@ import env from '../config/env';
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string };
+      user?: { id: string; role?: 'admin' | 'user' };
     }
   }
 }

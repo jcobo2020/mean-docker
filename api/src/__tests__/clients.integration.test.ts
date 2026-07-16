@@ -8,7 +8,7 @@ import Client from '../models/client';
 import env from '../config/env';
 import { obfuscateValue } from '../lib/obfuscate';
 
-describe('Clients API (WI-CLI-001-P1)', () => {
+describe('Clients API (WI-CLI-001)', () => {
   let mongoServer: MongoMemoryServer;
   const app = createApp();
   let adminToken: string;
@@ -64,6 +64,22 @@ describe('Clients API (WI-CLI-001-P1)', () => {
       });
     });
 
+    it('GET /api/clients without token returns 401', async () => {
+      const res = await request(app).get('/api/clients');
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: expect.any(String)
+      });
+    });
+
+    it('GET /api/clients/:id without token returns 401', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app).get(`/api/clients/${id}`);
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
+
     it('DELETE /api/clients/:id without token returns 401', async () => {
       const id = new mongoose.Types.ObjectId().toString();
       const res = await request(app).delete(`/api/clients/${id}`);
@@ -80,7 +96,15 @@ describe('Clients API (WI-CLI-001-P1)', () => {
       expect(res.body.status).toBe('error');
     });
 
-    it('valid JWT for deleted user returns 401', async () => {
+    it('valid JWT for deleted user returns 401 on GET list', async () => {
+      const res = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${deletedUserToken}`);
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('valid JWT for deleted user returns 401 on POST', async () => {
       const res = await request(app)
         .post('/api/clients')
         .set('Authorization', `Bearer ${deletedUserToken}`)
@@ -278,6 +302,283 @@ describe('Clients API (WI-CLI-001-P1)', () => {
         .delete(`/api/clients/${id}`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(res.status).toBe(404);
+      expect(res.body.status).toBe('error');
+    });
+  });
+
+  describe('GET /api/clients (WI-CLI-001-P2)', () => {
+    it('RN-01 / AC-01 — default list returns only active clients', async () => {
+      await Client.create([
+        {
+          name: 'Active One',
+          email: 'active1@acme.com',
+          phone: '+14155552671',
+          status: 'active'
+        },
+        {
+          name: 'Inactive One',
+          email: 'inactive1@acme.com',
+          status: 'inactive'
+        },
+        {
+          name: 'Active Two',
+          email: 'active2@acme.com',
+          status: 'active'
+        }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.total).toBe(2);
+      expect(res.body.data.page).toBe(1);
+      expect(res.body.data.limit).toBe(20);
+      expect(res.body.data.items).toHaveLength(2);
+      expect(
+        res.body.data.items.every(
+          (item: { status: string }) => item.status === 'active'
+        )
+      ).toBe(true);
+      expect(
+        res.body.data.items.map((item: { name: string }) => item.name)
+      ).not.toContain('Inactive One');
+    });
+
+    it('status=active explicit matches default list', async () => {
+      await Client.create([
+        { name: 'Active', email: 'active@acme.com', status: 'active' },
+        { name: 'Inactive', email: 'inactive@acme.com', status: 'inactive' }
+      ]);
+
+      const withoutFilter = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${userToken}`);
+      const withActive = await request(app)
+        .get('/api/clients?status=active')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(withoutFilter.status).toBe(200);
+      expect(withActive.status).toBe(200);
+      expect(withActive.body.data.total).toBe(withoutFilter.body.data.total);
+      expect(withActive.body.data.items.map((item: { id: string }) => item.id)).toEqual(
+        withoutFilter.body.data.items.map((item: { id: string }) => item.id)
+      );
+    });
+
+    it('RN-02 / AC-02 — non-admin with status=inactive receives 403 CLIENTS_FORBIDDEN_FILTER', async () => {
+      const res = await request(app)
+        .get('/api/clients?status=inactive')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'CLIENTS_FORBIDDEN_FILTER'
+      });
+    });
+
+    it('authorization wins over invalid pagination for status=inactive (D3)', async () => {
+      const res = await request(app)
+        .get('/api/clients?status=inactive&page=0&limit=999')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe('CLIENTS_FORBIDDEN_FILTER');
+    });
+
+    it('admin can list inactive clients', async () => {
+      await Client.create([
+        { name: 'Active', email: 'active@acme.com', status: 'active' },
+        {
+          name: 'Inactive',
+          email: 'inactive@acme.com',
+          phone: '+14155552671',
+          status: 'inactive'
+        }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients?status=inactive')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(1);
+      expect(res.body.data.items).toHaveLength(1);
+      expect(res.body.data.items[0].status).toBe('inactive');
+      expect(res.body.data.items[0].email).toBe(obfuscateValue('inactive@acme.com'));
+      expect(res.body.data.items[0].phone).toBe(obfuscateValue('+14155552671'));
+      expect(res.body.data.items[0].email).not.toBe('inactive@acme.com');
+    });
+
+    it('returns 200 with deterministic order and pagination', async () => {
+      const older = await Client.create({
+        name: 'Older',
+        email: 'older@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z')
+      });
+      const newer = await Client.create({
+        name: 'Newer',
+        email: 'newer@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-06-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-06-01T00:00:00.000Z')
+      });
+      const sameTimeFirst = await Client.create({
+        name: 'Same Time First',
+        email: 'same-first@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-03-01T00:00:00.000Z')
+      });
+      const sameTimeSecond = await Client.create({
+        name: 'Same Time Second',
+        email: 'same-second@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-03-01T00:00:00.000Z')
+      });
+
+      const tieBreakOrder = [sameTimeFirst.id, sameTimeSecond.id].sort().reverse();
+      const expectedOrder = [newer.id, ...tieBreakOrder, older.id];
+
+      const page1 = await request(app)
+        .get('/api/clients?page=1&limit=2')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(page1.status).toBe(200);
+      expect(page1.body.data.total).toBe(4);
+      expect(page1.body.data.page).toBe(1);
+      expect(page1.body.data.limit).toBe(2);
+      expect(page1.body.data.items.map((item: { id: string }) => item.id)).toEqual(
+        expectedOrder.slice(0, 2)
+      );
+      expect(page1.body.data.items[0].email).toBe(obfuscateValue('newer@acme.com'));
+
+      const page2 = await request(app)
+        .get('/api/clients?page=2&limit=2')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(page2.status).toBe(200);
+      expect(page2.body.data.items.map((item: { id: string }) => item.id)).toEqual(
+        expectedOrder.slice(2, 4)
+      );
+    });
+
+    it('returns 400 for invalid pagination params', async () => {
+      const cases = [
+        '/api/clients?page=abc',
+        '/api/clients?page=0',
+        '/api/clients?limit=0',
+        '/api/clients?limit=51',
+        '/api/clients?limit=xyz'
+      ];
+
+      for (const url of cases) {
+        const res = await request(app)
+          .get(url)
+          .set('Authorization', `Bearer ${userToken}`);
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+          status: 'error',
+          message: expect.any(String)
+        });
+      }
+    });
+
+    it('returns 400 for invalid status enum (D2)', async () => {
+      const res = await request(app)
+        .get('/api/clients?status=foo')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.status).toBe('error');
+    });
+  });
+
+  describe('GET /api/clients/:id (WI-CLI-001-P2)', () => {
+    it('returns 200 with obfuscated PII for active client', async () => {
+      const created = await Client.create({
+        name: 'Detail Client',
+        email: 'detail@acme.com',
+        phone: '+14155552671',
+        status: 'active'
+      });
+
+      const res = await request(app)
+        .get(`/api/clients/${created.id}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data).toMatchObject({
+        id: created.id,
+        name: 'Detail Client',
+        email: obfuscateValue('detail@acme.com'),
+        phone: obfuscateValue('+14155552671'),
+        status: 'active',
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      });
+      expect(res.body.data.email).not.toBe('detail@acme.com');
+      expect(res.body.data).not.toHaveProperty('_id');
+      expect(res.body.data).not.toHaveProperty('__v');
+    });
+
+    it('RN-05 / AC-05 — non-admin gets 404 for inactive client', async () => {
+      const created = await Client.create({
+        name: 'Hidden Inactive',
+        email: 'hidden@acme.com',
+        status: 'inactive'
+      });
+
+      const res = await request(app)
+        .get(`/api/clients/${created.id}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: expect.any(String)
+      });
+    });
+
+    it('admin can retrieve inactive client', async () => {
+      const created = await Client.create({
+        name: 'Admin Visible',
+        email: 'admin-visible@acme.com',
+        status: 'inactive'
+      });
+
+      const res = await request(app)
+        .get(`/api/clients/${created.id}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.status).toBe('inactive');
+      expect(res.body.data.email).toBe(obfuscateValue('admin-visible@acme.com'));
+    });
+
+    it('returns 404 when client does not exist', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .get(`/api/clients/${id}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('returns 400 for invalid ObjectId', async () => {
+      const res = await request(app)
+        .get('/api/clients/not-an-objectid')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
       expect(res.body.status).toBe('error');
     });
   });
