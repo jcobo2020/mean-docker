@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { body, param, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 
 const E164_REGEX = /^\+[1-9]\d{1,14}$/;
 
@@ -46,6 +46,33 @@ export const validateClientId = [
   param('id')
     .isMongoId()
     .withMessage('id must be a valid ObjectId'),
+  (req: Request, res: Response, next: NextFunction) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        status: 'error',
+        message: errors.array()[0].msg
+      });
+    }
+    next();
+  }
+];
+
+export const validateListClients = [
+  query('page')
+    .default(1)
+    .isInt({ min: 1 })
+    .withMessage('page must be an integer >= 1')
+    .toInt(),
+  query('limit')
+    .default(20)
+    .isInt({ min: 1, max: 50 })
+    .withMessage('limit must be an integer between 1 and 50')
+    .toInt(),
+  query('status')
+    .default('active')
+    .isIn(['active', 'inactive'])
+    .withMessage('status must be active or inactive'),
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

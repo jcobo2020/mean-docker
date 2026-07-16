@@ -5,9 +5,12 @@ import ClientController from '../controllers/ClientController';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { authenticate } from '../middlewares/authenticate.middleware';
 import { requireAdmin } from '../middlewares/requireAdmin.middleware';
+import { attachAuthenticatedUser } from '../middlewares/attachAuthenticatedUser.middleware';
+import { requireAdminForInactiveFilter } from '../middlewares/requireAdminForInactiveFilter.middleware';
 import {
   validateCreateClient,
-  validateClientId
+  validateClientId,
+  validateListClients
 } from '../validators/client.validators';
 
 const router = Router();
@@ -98,6 +101,13 @@ router.route('/contact/:contact_id')
 
 router
   .route('/clients')
+  .get(
+    authenticate,
+    attachAuthenticatedUser,
+    requireAdminForInactiveFilter,
+    validateListClients,
+    ClientController.list
+  )
   .post(
     authenticate,
     requireAdmin,
@@ -107,6 +117,12 @@ router
 
 router
   .route('/clients/:id')
+  .get(
+    authenticate,
+    attachAuthenticatedUser,
+    validateClientId,
+    ClientController.getById
+  )
   .delete(
     authenticate,
     requireAdmin,
