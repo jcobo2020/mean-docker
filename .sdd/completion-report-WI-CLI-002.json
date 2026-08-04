@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-CLI-002",
+  "summary": "Migración de esquema para el CLI: índice y columnas de estado, ejecutada sobre la base de desarrollo.",
+  "criteria": [],
+  "testsRun": [{ "name": "migration.spec.ts", "result": "pass" }],
+  "deviations": [],
+  "dodSelfAssessment": { "met": true, "blockers": [] },
+  "evidence": [
+    { "type": "migration_log", "ref": ".sdd/evidence/migration.log", "note": "Migración ejecutada exitosamente" }
+  ],
+  "clarificationRequests": [
+    { "question": "¿El rollback debe revertir también el índice, o solo las columnas?", "blocking": false }
+  ]
+}
