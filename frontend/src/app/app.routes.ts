@@ -11,6 +11,16 @@ export const routes: Routes = [
         ],
     },
     {
+        path: 'clients',
+        children: [
+            {
+                path: '',
+                loadChildren: () =>
+                    import('app/feature/clients/clients.routes'),
+            },
+        ],
+    },
+    {
         path: 'contacts',
         children: [
             {

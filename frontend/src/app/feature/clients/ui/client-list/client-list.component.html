@@ -1,0 +1,122 @@
+<!-- [AI-GENERATED | WI: WI-CLI-FRONT-001 | spec: MEAN-CLI-FRONT-001 | contrato: MEAN-CLI-004] -->
+<div class="clients">
+  <header class="clients__head">
+    <h2>Clientes</h2>
+
+    <div class="clients__filtros">
+      <!-- Desplegable EXCLUYENTE, no casilla de «incluir»: el contrato devuelve solo los del
+           estado pedido, así que una casilla prometería una lista mezclada que no sabe devolver. -->
+      <label for="estado">Estado</label>
+      <select
+        id="estado"
+        data-testid="filtro-estado"
+        [value]="estadoFiltro()"
+        (change)="cambiarEstado($any($event.target).value)"
+      >
+        <option value="active">Activos</option>
+        <option value="inactive">Inactivos</option>
+      </select>
+
+      <label for="tamano">Por página</label>
+      <select
+        id="tamano"
+        data-testid="tamano-pagina"
+        [value]="tamanoActual()"
+        (change)="cambiarTamano($any($event.target).value)"
+      >
+        @for (t of tamanos; track t) {
+          <option [value]="t">{{ t }}</option>
+        }
+      </select>
+    </div>
+  </header>
+
+  <!-- Aviso que NO saca de la pantalla: 403 del filtro, 404 al desactivar, vista inválida. -->
+  @if (aviso()) {
+    <div class="clients__aviso" role="status" data-testid="aviso">
+      {{ aviso() }}
+      <button type="button" (click)="cerrarAviso()" aria-label="Cerrar aviso">×</button>
+    </div>
+  }
+
+  @switch (estado()) {
+    <!-- AC-02 · cargando -->
+    @case ('cargando') {
+      <div class="clients__skeleton" data-testid="cargando" aria-busy="true">
+        @for (fila of [1, 2, 3, 4, 5]; track fila) {
+          <div class="clients__skeleton-fila"></div>
+        }
+        <span class="clients__sr">Cargando clientes…</span>
+      </div>
+    }
+
+    <!-- AC-03 · vacío, con sus DOS mensajes distintos -->
+    @case ('vacio') {
+      <div class="clients__vacio" data-testid="vacio">
+        @if (vacioPorFiltro()) {
+          <p>Ningún cliente coincide con la vista actual</p>
+          <button type="button" (click)="cambiarEstado('active')">
+            Volver a la primera página de activos
+          </button>
+        } @else {
+          <p>Todavía no hay clientes registrados</p>
+        }
+      </div>
+    }
+
+    <!-- AC-04 · error, dentro de la vista y con reintento -->
+    @case ('error') {
+      <div class="clients__error" role="alert" data-testid="error">
+        <p>No se pudieron cargar los clientes</p>
+        <button type="button" (click)="reintentar()" data-testid="reintentar">Reintentar</button>
+      </div>
+    }
+
+    <!-- AC-01 / AC-06 · camino feliz -->
+    @case ('con-datos') {
+      <table class="clients__tabla" [class.clients__tabla--vieja]="desactualizada()" data-testid="tabla">
+        <caption class="clients__sr">Listado de clientes</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nombre</th>
+            <th scope="col">Correo</th>
+            <th scope="col">Teléfono</th>
+            <th scope="col">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of pagina()!.items; track c.id) {
+            <tr>
+              <td>{{ c.name }}</td>
+              <!-- Llegan YA ofuscados del servidor. Aquí no se des-ofusca ni se ofrece «ver
+                   completo»: el servidor nunca envía el valor limpio, tampoco a un administrador. -->
+              <td>{{ c.email }}</td>
+              <td>{{ c.phone ?? 'No informado' }}</td>
+              <td>{{ c.status === 'active' ? 'Activo' : 'Inactivo' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <nav class="clients__paginador" aria-label="Paginación">
+        <button
+          type="button"
+          [disabled]="paginaActual() <= 1"
+          (click)="irAPagina(paginaActual() - 1)"
+        >
+          Anterior
+        </button>
+        <span data-testid="paginador">
+          Página {{ pagina()!.page }} de {{ totalPaginas() }} · {{ pagina()!.total }} cliente(s)
+        </span>
+        <button
+          type="button"
+          [disabled]="paginaActual() >= totalPaginas()"
+          (click)="irAPagina(paginaActual() + 1)"
+        >
+          Siguiente
+        </button>
+      </nav>
+    }
+  }
+</div>
