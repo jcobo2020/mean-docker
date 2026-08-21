@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-API-CLIENTES-FAV-001",
+  "summary": "Endpoints de favoritos de cliente (POST/DELETE/GET) implementados sobre ClientService existente, con modelo ClientFavorite en Mongoose y orden de rutas Express verificado por sabotaje.",
+  "criteria": [
+    { "id": "AC-01", "status": "covered" },
+    { "id": "AC-02", "status": "covered" },
+    { "id": "AC-03", "status": "covered" },
+    { "id": "AC-04", "status": "covered" },
+    { "id": "AC-05", "status": "covered" },
+    { "id": "AC-06", "status": "covered" },
+    { "id": "AC-07", "status": "covered" },
+    { "id": "AC-08", "status": "covered" },
+    { "id": "AC-09", "status": "covered" },
+    { "id": "AC-10", "status": "covered" },
+    { "id": "AC-11", "status": "covered" },
+    { "id": "AC-12", "status": "covered" }
+  ],
+  "testsRun": [
+    { "name": "src/services/FavoriteService.test.ts", "result": "pass" },
+    { "name": "src/__tests__/favorites.integration.test.ts", "result": "pass" },
+    { "name": "src/__tests__/clients.integration.test.ts", "result": "pass" },
+    { "name": "src/services/ClientService.test.ts", "result": "pass" },
+    { "name": "src/lib/obfuscate.test.ts", "result": "pass" }
+  ],
+  "deviations": [],
+  "dodSelfAssessment": { "met": true, "blockers": [] },
+  "evidence": [
+    {
+      "type": "test_results",
+      "ref": "api/src/__tests__/favorites.integration.test.ts",
+      "note": "23 tests de integración (JWT requerido, AC-01..AC-12, ofuscación, orden ClientFavorite.createdAt desc, no-colisión con /clients/:id) — suite completa 67/67 passing"
+    }
+  ],
+  "clarificationRequests": []
+}
