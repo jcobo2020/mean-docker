@@ -61,6 +61,26 @@
 
 .clients__paginador { display: flex; gap: 1rem; align-items: center; justify-content: center; }
 
+/* [AI-GENERATED | WI: WI-API-CLIENTES-FAV-001 | spec: MEAN-DISENO-CLIENTES-FAV-001] */
+.clients__estrella {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: .25rem;
+  border-radius: var(--border-radius, 8px);
+  color: var(--text-secondary, #6c757d);
+  transition: var(--transition, all 0.2s ease);
+}
+.clients__estrella:hover:not(:disabled) { box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, .075)); }
+.clients__estrella:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(77, 166, 255, .25);
+}
+.clients__estrella:disabled { cursor: not-allowed; opacity: .6; }
+.clients__estrella--activa { color: var(--warning-color, #ffc107); }
+
 /* Texto solo para lectores de pantalla. */
 .clients__sr {
   position: absolute;

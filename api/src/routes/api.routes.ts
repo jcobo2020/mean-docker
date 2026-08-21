@@ -2,6 +2,7 @@ import { Router } from 'express';
 import UserController from '../controllers/UserController';
 import ContactController from '../controllers/ContactController';
 import ClientController from '../controllers/ClientController';
+import FavoriteController from '../controllers/FavoriteController';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { authenticate } from '../middlewares/authenticate.middleware';
 import { requireAdmin } from '../middlewares/requireAdmin.middleware';
@@ -113,6 +114,28 @@ router
     requireAdmin,
     validateCreateClient,
     ClientController.create
+  );
+
+// ⚠️ Orden de registro crítico (ANAL-003 / ARCH-005 de MEAN-API-CLIENTES-FAV-001):
+// /clients/favorites debe registrarse ANTES que /clients/:id, o Express interpreta
+// 'favorites' como el valor del parámetro :id y esta ruta nunca se alcanza.
+router
+  .route('/clients/favorites')
+  .get(authenticate, attachAuthenticatedUser, FavoriteController.list);
+
+router
+  .route('/clients/:id/favorite')
+  .post(
+    authenticate,
+    attachAuthenticatedUser,
+    validateClientId,
+    FavoriteController.mark
+  )
+  .delete(
+    authenticate,
+    attachAuthenticatedUser,
+    validateClientId,
+    FavoriteController.unmark
   );
 
 router

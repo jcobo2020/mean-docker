@@ -1,17 +1,25 @@
 // [AI-GENERATED | WI: WI-CLI-FRONT-001 | spec: MEAN-CLI-FRONT-001 | contrato: MEAN-CLI-004]
+// [AI-GENERATED | WI: WI-API-CLIENTES-FAV-001 | spec: MEAN-UX-CLIENTES-FAV-001 | contrato: MEAN-API-CLIENTES-FAV-001]
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { switchMap } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import {
   PAGINA_POR_DEFECTO,
   TAMANOS_DE_PAGINA,
   TAMANO_POR_DEFECTO,
   type ClientPage,
   type ClientStatusFilter,
+  type ClientSummary,
 } from '../../domain/models/client.model';
 import { esErrorDeCliente, type AnyClientError } from '../../domain/errors/client.errors';
 import { ListClientsUseCase } from '../../application/client.use-cases';
+import {
+  ListFavoriteClientsUseCase,
+  MarkFavoriteUseCase,
+  UnmarkFavoriteUseCase,
+} from '../../application/favorite.use-cases';
 
 /** Lo que la vista está mostrando ahora mismo. Un solo valor: dos banderas se contradicen. */
 type EstadoDeVista = 'cargando' | 'con-datos' | 'vacio' | 'error';
@@ -25,6 +33,9 @@ type EstadoDeVista = 'cargando' | 'con-datos' | 'vacio' | 'error';
 })
 export class ClientListComponent {
   private readonly listar = inject(ListClientsUseCase);
+  private readonly marcar = inject(MarkFavoriteUseCase);
+  private readonly desmarcar = inject(UnmarkFavoriteUseCase);
+  private readonly listarFavoritos = inject(ListFavoriteClientsUseCase);
   private readonly router = inject(Router);
   private readonly ruta = inject(ActivatedRoute);
 
@@ -41,14 +52,27 @@ export class ClientListComponent {
   readonly paginaActual = signal(PAGINA_POR_DEFECTO);
   readonly tamanoActual = signal<number>(TAMANO_POR_DEFECTO);
   readonly estadoFiltro = signal<ClientStatusFilter>('active');
+  /**
+   * "Solo favoritos" es EXCLUYENTE con el filtro de Estado (MEAN-DISENO-CLIENTES-FAV-001): activarlo
+   * cambia el data source a `GET /clients/favorites`, que no pagina ni acepta `status` — no es un
+   * tercer valor de `estadoFiltro`, es una vista distinta.
+   */
+  readonly soloFavoritos = signal(false);
+
+  /** Los ids del cliente actual que son favorito del usuario autenticado — pinta la estrella. */
+  readonly favoritos = signal<ReadonlySet<string>>(new Set());
+  /** Evita doble clic mientras el toggle de una fila está en vuelo (RN-01, diseño). */
+  readonly favoritosPendientes = signal<ReadonlySet<string>>(new Set());
 
   /**
    * Distingue los DOS vacíos, porque no son la misma situación: sin filtros es «aún no hay nada» y
    * con filtro es «nada coincide». Un solo mensaje para ambos manda al usuario a buscar un problema
-   * donde no lo hay.
+   * donde no lo hay. En "Solo favoritos" el vacío es un tercer caso (RN-04: estado inicial esperado,
+   * no un filtro restrictivo) y se distingue en la plantilla por `soloFavoritos()`.
    */
   readonly vacioPorFiltro = computed(
-    () => this.estadoFiltro() === 'inactive' || this.paginaActual() > 1,
+    () =>
+      !this.soloFavoritos() && (this.estadoFiltro() === 'inactive' || this.paginaActual() > 1),
   );
 
   readonly totalPaginas = computed(() => {
@@ -66,17 +90,39 @@ export class ClientListComponent {
           this.paginaActual.set(this.numero(params.get('page'), PAGINA_POR_DEFECTO));
           this.tamanoActual.set(this.tamanoValido(params.get('limit')));
           this.estadoFiltro.set(params.get('status') === 'inactive' ? 'inactive' : 'active');
+          this.soloFavoritos.set(params.get('favorites') === '1');
 
           if (this.pagina() === null) this.estado.set('cargando');
           else this.desactualizada.set(true);
 
+          if (this.soloFavoritos()) {
+            // "Solo favoritos": el propio listado YA son los favoritos, no hace falta cruzarlo con
+            // una segunda llamada — cada fila mostrada es, por definición, favorita.
+            return this.listarFavoritos.execute().pipe(
+              switchMap((items) => {
+                this.favoritos.set(new Set(items.map((c) => c.id)));
+                return of({ items, total: items.length, page: 1, limit: items.length || 1 });
+              }),
+            );
+          }
+
+          // Vista normal: el listado paginado y el conjunto de favoritos del usuario se piden en
+          // paralelo — la estrella de cada fila depende del segundo, no del primero.
           // `switchMap` cancela la petición anterior: sin él, una respuesta lenta de la página
           // previa puede pisar a la actual y mostrar datos que el usuario ya no pidió.
-          return this.listar.execute({
-            page: this.paginaActual(),
-            limit: this.tamanoActual(),
-            ...(this.estadoFiltro() === 'inactive' ? { status: 'inactive' as const } : {}),
-          });
+          return forkJoin({
+            pagina: this.listar.execute({
+              page: this.paginaActual(),
+              limit: this.tamanoActual(),
+              ...(this.estadoFiltro() === 'inactive' ? { status: 'inactive' as const } : {}),
+            }),
+            favoritos: this.listarFavoritos.execute().pipe(catchError(() => of([]))),
+          }).pipe(
+            switchMap(({ pagina, favoritos }) => {
+              this.favoritos.set(new Set(favoritos.map((c) => c.id)));
+              return of(pagina);
+            }),
+          );
         }),
       )
       .subscribe({
@@ -141,6 +187,65 @@ export class ClientListComponent {
   cambiarEstado(valor: string): void {
     this.aviso.set(null);
     this.irA({ status: valor === 'inactive' ? 'inactive' : null, page: 1 });
+  }
+
+  cambiarSoloFavoritos(valor: string): void {
+    this.aviso.set(null);
+    this.irA({ favorites: valor === '1' ? '1' : null, page: 1 });
+  }
+
+  esFavorito(cliente: ClientSummary): boolean {
+    return this.favoritos().has(cliente.id);
+  }
+
+  estaPendiente(cliente: ClientSummary): boolean {
+    return this.favoritosPendientes().has(cliente.id);
+  }
+
+  /**
+   * Toggle optimista (diseño MEAN-DISENO-CLIENTES-FAV-001): el ícono cambia al instante y se
+   * revierte solo si el request falla. El botón se marca "pendiente" mientras está en vuelo para
+   * evitar un doble clic — la idempotencia del backend ya lo resuelve bien, pero un doble ícono
+   * visual confunde aunque el resultado final sea correcto.
+   */
+  toggleFavorito(cliente: ClientSummary): void {
+    if (this.estaPendiente(cliente)) return;
+
+    const eraFavorito = this.esFavorito(cliente);
+    this.marcarPendiente(cliente.id, true);
+    this.aplicarFavoritoLocal(cliente.id, !eraFavorito);
+
+    const accion = eraFavorito
+      ? this.desmarcar.execute(cliente.id)
+      : this.marcar.execute(cliente.id);
+
+    accion.subscribe({
+      next: () => this.marcarPendiente(cliente.id, false),
+      error: () => {
+        this.marcarPendiente(cliente.id, false);
+        this.aplicarFavoritoLocal(cliente.id, eraFavorito);
+        this.aviso.set('No se pudo actualizar el favorito. Intenta de nuevo.');
+        if (this.soloFavoritos() && eraFavorito) {
+          // Si falló el desmarcado en la vista "Solo favoritos", la fila debe seguir visible —
+          // revertir el Set ya lo garantiza, no hace falta recargar el listado.
+          return;
+        }
+      },
+    });
+  }
+
+  private aplicarFavoritoLocal(clientId: string, esFavorito: boolean): void {
+    const actual = new Set(this.favoritos());
+    if (esFavorito) actual.add(clientId);
+    else actual.delete(clientId);
+    this.favoritos.set(actual);
+  }
+
+  private marcarPendiente(clientId: string, pendiente: boolean): void {
+    const actual = new Set(this.favoritosPendientes());
+    if (pendiente) actual.add(clientId);
+    else actual.delete(clientId);
+    this.favoritosPendientes.set(actual);
   }
 
   /**

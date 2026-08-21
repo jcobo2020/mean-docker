@@ -4,8 +4,15 @@ import { Routes } from '@angular/router';
 import { authGuard } from '../../@core/guards';
 import { jwtInterceptor } from '../../@core/interceptors/jwtToken.Interceptor';
 import { ListClientsUseCase } from './application/client.use-cases';
+import {
+  ListFavoriteClientsUseCase,
+  MarkFavoriteUseCase,
+  UnmarkFavoriteUseCase,
+} from './application/favorite.use-cases';
 import { CLIENT_REPOSITORY } from './domain/ports/client-repository.port';
+import { FAVORITE_REPOSITORY } from './domain/ports/favorite-repository.port';
 import { HttpClientRepository } from './infrastructure/http-client.repository';
+import { HttpFavoriteRepository } from './infrastructure/http-favorite.repository';
 import { clientsSessionInterceptor } from './infrastructure/session.interceptor';
 
 /**
@@ -41,7 +48,11 @@ const routes: Routes = [
     providers: [
       provideHttpClient(withInterceptors([jwtInterceptor, clientsSessionInterceptor])),
       { provide: CLIENT_REPOSITORY, useClass: HttpClientRepository },
+      { provide: FAVORITE_REPOSITORY, useClass: HttpFavoriteRepository },
       ListClientsUseCase,
+      MarkFavoriteUseCase,
+      UnmarkFavoriteUseCase,
+      ListFavoriteClientsUseCase,
     ],
     children: [
       {
