@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-UX-CLIENTES-FAV-001",
+  "summary": "El comportamiento de /clients (estrella, filtro 'Solo favoritos', toggle optimista, reversión en error) ya estaba implementado de una vuelta anterior del mismo ciclo (PR #4). El delta de este work item es la prueba que faltaba: 13 tests nuevos (10 de componente + 3 de interceptor, uno por AC) y la evidencia real capturada contra el stack corriendo, no un mockup.",
+  "criteria": [
+    { "id": "AC-01", "status": "covered", "note": "client-list.component.spec.ts: tabla con columna Favorito, botón de estrella con aria-pressed, desplegable 'Solo favoritos'. Verificado también en el navegador con datos reales." },
+    { "id": "AC-02", "status": "covered", "note": "client-list.component.spec.ts: Subject pendiente deja el estado en 'cargando' y el skeleton [data-testid=cargando] visible." },
+    { "id": "AC-03", "status": "covered", "note": "3 tests: mensaje exacto de 'Solo favoritos' vacío, un fallo de red en ese modo NO se disfraza del mensaje de vacío (se trata como error genérico), y el vacío general no se confunde con el de favoritos." },
+    { "id": "AC-04", "status": "covered", "note": "session.interceptor.spec.ts (nuevo, este AC no tenía NINGUNA prueba antes): 401 limpia localStorage y redirige a /login con returnUrl; 403 no expulsa; 400/404/409 pasan intactos al adaptador." },
+    { "id": "AC-05", "status": "covered", "note": "client-list.component.spec.ts: 200 al desmarcar confirma el flip optimista sin aviso adicional." },
+    { "id": "AC-06", "status": "covered", "note": "client-list.component.spec.ts + verificado en el navegador con clic real: el ícono se rellena al instante, la respuesta solo confirma." },
+    { "id": "AC-07", "status": "covered", "note": "client-list.component.spec.ts: 400 revierte el toggle y muestra 'No se pudo actualizar el favorito. Intenta de nuevo.'" },
+    { "id": "AC-08", "status": "covered", "note": "client-list.component.spec.ts: 404 revierte el toggle con el mismo aviso genérico." },
+    { "id": "AC-09", "status": "covered", "note": "client-list.component.spec.ts: 500 revierte, mismo aviso, y se comprueba que el use case se invoca exactamente 1 vez (sin reintento automático)." }
+  ],
+  "testsRun": [
+    { "name": "client-list.component.spec.ts", "result": "pass" },
+    { "name": "session.interceptor.spec.ts", "result": "pass" },
+    { "name": "http-client.repository.spec.ts", "result": "pass" },
+    { "name": "http-favorite.repository.spec.ts", "result": "pass" }
+  ],
+  "deviations": [],
+  "dodSelfAssessment": { "met": true, "blockers": [] },
+  "evidence": [
+    { "type": "screenshot", "ref": ".sdd/evidence/clients-listado.png", "note": "Listado /clients con 3 clientes reales, uno marcado favorito (estrella rellena)." },
+    { "type": "screenshot", "ref": ".sdd/evidence/clients-solo-favoritos.png", "note": "Filtro 'Solo favoritos' activo: solo el cliente marcado, filtro de Estado deshabilitado (excluyente)." }
+  ],
+  "clarificationRequests": []
+}
