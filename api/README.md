@@ -89,6 +89,17 @@ api/
 - **DELETE /api/contact/:contact_id** - Delete contact (requires authentication)
   - Response: `{ status: string, message: string }`
 
+### Clients
+
+> Este work item documenta el contrato de `MEAN-API-CLIENTE-REACTIVAR-001` (reactivar un cliente).
+> El resto de endpoints de Clients (listar, crear, obtener, desactivar, favoritos) pertenece a
+> otros work packages del mismo módulo y no se documenta aquí.
+
+- **POST /api/clients/:id/reactivate** - Reactivate a deactivated client (requires admin role)
+  - Idempotent: no-op if the client is already `active`
+  - Response: `{ status: string, message: string, data: Client }`
+  - Errors: `403` if the caller is not an admin, `404` if the client doesn't exist
+
 ## Getting Started
 
 ### Prerequisites

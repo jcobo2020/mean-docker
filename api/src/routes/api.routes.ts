@@ -138,27 +138,6 @@ router
     FavoriteController.unmark
   );
 
-/**
- * @swagger
- * /api/clients/{id}/reactivate:
- *   post:
- *     summary: Reactivate a deactivated client
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Client reactivated (or already active)
- *       403:
- *         description: Admin role required
- *       404:
- *         description: Client not found
- */
 router
   .route('/clients/:id/reactivate')
   .post(

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-API-CLIENTE-REACTIVAR-002",
+  "summary": "Documentado POST /api/clients/:id/reactivate: Swagger movido de routes/api.routes.ts (donde swagger-jsdoc no lo indexaba, ya que 'apis' solo escanea src/controllers/*.ts) a ClientController.ts, verificado con ts-node que ahora aparece en swaggerSpec.paths; añadida seccion Clients en api/README.md.",
+  "criteria": [
+    { "id": "AC-01", "status": "covered", "note": "El contrato de reactivate ya estaba implementado (WI-API-CLIENTE-REACTIVAR-001); este WI documenta su Swagger y README." },
+    { "id": "AC-02", "status": "covered", "note": "Swagger valida y responde 200/403/404 segun el contrato; verificado leyendo swaggerSpec.paths tras el cambio." },
+    { "id": "AC-03", "status": "covered", "note": "README documenta el endpoint con su forma de respuesta y sus dos errores." }
+  ],
+  "testsRun": [
+    { "name": "npm run build (tsc)", "result": "pass" },
+    { "name": "ts-node: swaggerSpec.paths incluye /api/clients/{id}/reactivate", "result": "pass" }
+  ],
+  "deviations": [
+    {
+      "description": "El bloque @swagger de reactivate se MOVIO de src/routes/api.routes.ts a src/controllers/ClientController.ts (no solo se documento donde ya estaba).",
+      "reason": "swagger-jsdoc.apis solo escanea './src/controllers/*.ts'; el bloque en routes nunca llegaba a /api-docs pese a existir en el codigo fuente. Confirmado leyendo swaggerSpec.paths antes (ausente) y despues (presente) del cambio. Es el mismo patron que ya usan UserController y ContactController."
+    }
+  ],
+  "dodSelfAssessment": { "met": true, "blockers": [] },
+  "clarificationRequests": [
+    {
+      "question": "El README solo documenta POST /api/clients/:id/reactivate. Los demas endpoints de Clients (list/create/get/delete/favorites) no tienen seccion en el README. ¿Corresponde documentarlos aqui o a otro work item del package?",
+      "blocking": false,
+      "context": "El pack (§2, autoridad de contratos) solo define el contrato de reactivate para esta spec (MEAN-API-CLIENTE-REACTIVAR-001); §10 prohibe tocar endpoints de otros work items del package. Se documento solo lo autorizado y se dejo una nota explicita en el README senalando el alcance."
+    }
+  ],
+  "evidence": [
+    { "type": "doc_review", "ref": "api/README.md", "note": "Seccion Clients anadida, y Swagger de reactivate confirmado visible en swaggerSpec.paths tras moverlo al controller" }
+  ]
+}
