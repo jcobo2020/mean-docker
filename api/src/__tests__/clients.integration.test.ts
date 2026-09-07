@@ -112,6 +112,13 @@ describe('Clients API (WI-CLI-001)', () => {
       expect(res.status).toBe(401);
       expect(res.body.status).toBe('error');
     });
+
+    it('POST /api/clients/:id/reactivate without token returns 401', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app).post(`/api/clients/${id}/reactivate`);
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
   });
 
   describe('RN-06 / AC-06 — admin only', () => {
@@ -577,6 +584,104 @@ describe('Clients API (WI-CLI-001)', () => {
       const res = await request(app)
         .get('/api/clients/not-an-objectid')
         .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.status).toBe('error');
+    });
+  });
+
+  describe('POST /api/clients/:id/reactivate (WI-API-CLIENTE-REACTIVAR-001)', () => {
+    it('AC-01 — reactivates an inactive client and returns 200 with active status', async () => {
+      const created = await Client.create({
+        name: 'Inactive Client',
+        email: 'inactive@acme.com',
+        phone: '+14155552671',
+        status: 'inactive'
+      });
+
+      const res = await request(app)
+        .post(`/api/clients/${created.id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.message).toEqual(expect.any(String));
+      expect(res.body.data).toMatchObject({
+        id: created.id,
+        name: 'Inactive Client',
+        email: obfuscateValue('inactive@acme.com'),
+        phone: obfuscateValue('+14155552671'),
+        status: 'active',
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      });
+      expect(res.body.data).not.toHaveProperty('_id');
+      expect(res.body.data).not.toHaveProperty('__v');
+
+      const row = await Client.findById(created.id);
+      expect(row!.status).toBe('active');
+    });
+
+    it('AC-01 — idempotent: reactivating an already active client returns 200', async () => {
+      const created = await Client.create({
+        name: 'Already Active',
+        email: 'alreadyactive@acme.com',
+        status: 'active'
+      });
+      const previousUpdatedAt = created.updatedAt.getTime();
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      const res = await request(app)
+        .post(`/api/clients/${created.id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.status).toBe('active');
+
+      const reloaded = await Client.findById(created.id);
+      expect(reloaded!.updatedAt.getTime()).toBe(previousUpdatedAt);
+    });
+
+    it('AC-02 — returns 404 when client does not exist', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .post(`/api/clients/${id}/reactivate`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: expect.any(String)
+      });
+    });
+
+    it('AC-03 / RN-01 — non-admin returns 403 without modifying client status', async () => {
+      const created = await Client.create({
+        name: 'Should Stay Inactive',
+        email: 'stayinactive@acme.com',
+        status: 'inactive'
+      });
+
+      const res = await request(app)
+        .post(`/api/clients/${created.id}/reactivate`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: expect.any(String)
+      });
+
+      const row = await Client.findById(created.id);
+      expect(row!.status).toBe('inactive');
+    });
+
+    it('returns 400 for invalid ObjectId', async () => {
+      const res = await request(app)
+        .post('/api/clients/not-an-objectid/reactivate')
+        .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(400);
       expect(res.body.status).toBe('error');

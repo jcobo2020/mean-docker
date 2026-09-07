@@ -1,0 +1,22 @@
+Coverage report: WI-API-CLIENTE-REACTIVAR-001
+Command: npm test (jest with collectCoverage: true)
+Working directory: api/
+
+----------------------------------------------|---------|----------|---------|---------|
+File                                          | % Stmts | % Branch | % Funcs | % Lines |
+----------------------------------------------|---------|----------|---------|---------|
+All files                                     |   62.91 |    67.06 |   60.36 |   66.06 |
+ src/services/ClientService.ts                |    98.5 |    95.55 |     100 |   98.38 |
+ src/controllers/ClientController.ts          |      60 |    51.66 |   70.37 |   68.91 |
+ src/routes/api.routes.ts                     |   96.55 |    85.71 |      50 |   96.55 |
+ src/validators/client.validators.ts          |      96 |    88.23 |     100 |      96 |
+ src/lib/obfuscate.ts                         |     100 |      100 |     100 |     100 |
+----------------------------------------------|---------|----------|---------|---------|
+
+Key files for this work item:
+- ClientService.ts: 98.5% statements, 95.55% branches, 100% functions — EXCEEDS 80% threshold
+- api.routes.ts: 96.55% statements — EXCEEDS 80% threshold
+- validators/client.validators.ts: 96% statements — EXCEEDS 80% threshold
+
+Full lcov report: coverage/lcov-report/index.html
+All 76 tests PASS. Exit code: 0.

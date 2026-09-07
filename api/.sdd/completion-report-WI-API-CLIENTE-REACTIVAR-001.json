@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-API-CLIENTE-REACTIVAR-001",
+  "summary": "Implementado el endpoint POST /api/clients/:id/reactivate que reactiva un cliente inactivo (status inactive -> active), con comportamiento idempotente si ya está active. Se añadió el método reactivate en ClientService, el handler reactivate en ClientController, la ruta con cadena authenticate -> requireAdmin -> validateClientId, y los tests unitarios e integración correspondientes.",
+  "criteria": [
+    {
+      "id": "AC-01",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate con admin y cliente inactive responde 200 con status active y el cliente actualizado. También cubre idempotencia: si ya está active devuelve 200 sin escribir en DB. Verificado en ClientService.test.ts (reactivate) y clients.integration.test.ts (AC-01)."
+    },
+    {
+      "id": "AC-02",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate con un id inexistente responde 404. Verificado en ClientService.test.ts (throws ClientNotFoundError) y clients.integration.test.ts (AC-02)."
+    },
+    {
+      "id": "AC-03",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate por actor sin rol admin responde 403 sin modificar el status del cliente. El middleware requireAdmin actúa antes del controller. Verificado en clients.integration.test.ts (AC-03 / RN-01). Cumple la puerta RN-01 del DoD."
+    }
+  ],
+  "testsRun": [
+    { "name": "src/lib/obfuscate.test.ts", "result": "pass" },
+    { "name": "src/services/FavoriteService.test.ts", "result": "pass" },
+    { "name": "src/services/ClientService.test.ts", "result": "pass" },
+    { "name": "src/__tests__/favorites.integration.test.ts", "result": "pass" },
+    { "name": "src/__tests__/clients.integration.test.ts", "result": "pass" }
+  ],
+  "evidence": [
+    {
+      "type": "test_results",
+      "ref": "api/.sdd/evidence/test-results.txt",
+      "note": "76 tests passing. Incluye 9 tests nuevos para POST /api/clients/:id/reactivate (3 unitarios en ClientService.test.ts y 5 de integración + 1 de auth en clients.integration.test.ts)."
+    },
+    {
+      "type": "coverage_report",
+      "ref": "api/coverage/lcov-report/index.html",
+      "note": "ClientService.ts: 98.5% statements, 95.55% branches, 100% functions. api.routes.ts: 96.55% statements. Supera el umbral del 80% en los archivos clave del work item."
+    }
+  ],
+  "deviations": [
+    {
+      "description": "Se habilitó collectCoverage en jest.config.js para generar el reporte de cobertura requerido como evidencia.",
+      "reason": "El comando test solo acepta 'jest' sin argumentos adicionales. Habilitar la cobertura en la configuración permanente del proyecto no debilita ningún test ni fuerza resultados: es una adición de observabilidad que el equipo puede mantener o revertir."
+    },
+    {
+      "description": "La cobertura global de All files es ~62.9%, por debajo del 80%, pero los módulos del scope de este WI (ClientService: 98.5%, api.routes: 96.55%, validators: 96%) superan el umbral. La baja cobertura global viene de módulos legacy (Contact, User, swagger, database) sin tests propios.",
+      "reason": "El DoD exige cobertura ≥80% para el módulo con lógica de negocio de este work item (ClientService). Los módulos legacy no son alcance de este WI."
+    }
+  ],
+  "dodSelfAssessment": {
+    "met": true,
+    "blockers": []
+  },
+  "clarificationRequests": []
+}

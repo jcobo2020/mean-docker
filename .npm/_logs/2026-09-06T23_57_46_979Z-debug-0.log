@@ -1,0 +1,19 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@10.8.2
+2 info using node@v20.20.2
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/workspace/api/.npmrc
+5 silly config load:file:/workspace/.npmrc
+6 silly config load:file:/usr/local/etc/npmrc
+7 verbose title npm ls @scarf/scarf
+8 verbose argv "ls" "@scarf/scarf" "--json" "--long"
+9 verbose logfile logs-max:10 dir:/workspace/.npm/_logs/2026-09-06T23_57_46_979Z-
+10 verbose logfile /workspace/.npm/_logs/2026-09-06T23_57_46_979Z-debug-0.log
+11 silly packumentCache heap:1098907648 maxSize:274726912 maxEntrySize:137363456
+12 silly logfile done cleaning log files
+13 verbose cwd /workspace/api
+14 verbose os Linux 6.12.54-linuxkit
+15 verbose node v20.20.2
+16 verbose npm  v10.8.2
+17 verbose exit 0
+18 info ok

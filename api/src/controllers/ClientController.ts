@@ -89,6 +89,25 @@ class ClientController {
       next(error);
     }
   }
+
+  async reactivate(req: Request, res: Response, next: NextFunction) {
+    try {
+      const client = await ClientService.reactivate(req.params.id);
+      return res.status(200).json({
+        status: 'success',
+        message: 'Client reactivated successfully',
+        data: toPublicClient(client)
+      });
+    } catch (error) {
+      if (error instanceof ClientNotFoundError) {
+        return res.status(404).json({
+          status: 'error',
+          message: error.message
+        });
+      }
+      next(error);
+    }
+  }
 }
 
 export default new ClientController();

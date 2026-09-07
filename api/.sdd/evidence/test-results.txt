@@ -1,0 +1,30 @@
+Test run: WI-API-CLIENTE-REACTIVAR-001
+Command: npm test (jest)
+Working directory: api/
+
+PASS src/lib/obfuscate.test.ts
+PASS src/services/FavoriteService.test.ts
+PASS src/services/ClientService.test.ts
+PASS src/__tests__/favorites.integration.test.ts
+PASS src/__tests__/clients.integration.test.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       76 passed, 76 total
+Snapshots:   0 total
+
+--- New tests added by this work item ---
+
+ClientService.test.ts — reactivate (RN-01):
+  ✓ marks status active and persists the change
+  ✓ is idempotent without write when already active
+  ✓ throws ClientNotFoundError when client does not exist
+
+clients.integration.test.ts — POST /api/clients/:id/reactivate (WI-API-CLIENTE-REACTIVAR-001):
+  ✓ AC-01 — reactivates an inactive client and returns 200 with active status
+  ✓ AC-01 — idempotent: reactivating an already active client returns 200
+  ✓ AC-02 — returns 404 when client does not exist
+  ✓ AC-03 / RN-01 — non-admin returns 403 without modifying client status  [DoD gate RN-01]
+  ✓ returns 400 for invalid ObjectId
+  ✓ POST /api/clients/:id/reactivate without token returns 401
+
+All 76 tests PASS. Exit code: 0.
