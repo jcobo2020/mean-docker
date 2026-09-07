@@ -40,6 +40,10 @@ const swaggerOptions = {
       {
         name: 'Contacts',
         description: 'Contact management endpoints'
+      },
+      {
+        name: 'Clients',
+        description: 'Client management endpoints'
       }
     ]
   },
