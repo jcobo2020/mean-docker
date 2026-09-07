@@ -34,3 +34,6 @@ Thumbs.db
 
 # Data
 Mongo-data
+
+# Coverage (generado por jest --coverage; es evidencia, no fuente)
+coverage/
