@@ -125,6 +125,21 @@ export class ClientService {
     await client.save();
     return client;
   }
+
+  async reactivate(id: string): Promise<IClient> {
+    const client = await Client.findById(id);
+    if (!client) {
+      throw new ClientNotFoundError();
+    }
+
+    if (client.status === 'active') {
+      return client;
+    }
+
+    client.status = 'active';
+    await client.save();
+    return client;
+  }
 }
 
 export default new ClientService();

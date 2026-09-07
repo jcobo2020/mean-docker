@@ -59,6 +59,52 @@ describe('ClientService', () => {
     });
   });
 
+  describe('reactivate (AC-01, AC-02)', () => {
+    it('AC-01 — marks status active and persists the change', async () => {
+      const created = await Client.create({
+        name: 'Inactive Client',
+        email: 'inactive@example.com',
+        phone: '+14155552671',
+        status: 'inactive'
+      });
+
+      const result = await ClientService.reactivate(created.id);
+
+      expect(result.status).toBe('active');
+      expect(result.id).toBe(created.id);
+
+      const row = await Client.findById(created.id);
+      expect(row).not.toBeNull();
+      expect(row!.status).toBe('active');
+      expect(row!.name).toBe('Inactive Client');
+      expect(row!.email).toBe('inactive@example.com');
+    });
+
+    it('AC-01 — is idempotent without write when already active', async () => {
+      const created = await Client.create({
+        name: 'Already Active',
+        email: 'alreadyactive@example.com',
+        status: 'active'
+      });
+      const previousUpdatedAt = created.updatedAt.getTime();
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      const result = await ClientService.reactivate(created.id);
+      const reloaded = await Client.findById(created.id);
+
+      expect(result.status).toBe('active');
+      expect(reloaded!.updatedAt.getTime()).toBe(previousUpdatedAt);
+    });
+
+    it('AC-02 — throws ClientNotFoundError for non-existent id', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId().toString();
+      await expect(
+        ClientService.reactivate(nonExistentId)
+      ).rejects.toMatchObject({ name: 'ClientNotFoundError' });
+    });
+  });
+
   describe('list', () => {
     it('filters by status and sorts createdAt desc, _id desc', async () => {
       const older = await Client.create({

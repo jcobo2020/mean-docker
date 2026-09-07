@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 3,
+  "workItemCode": "WI-API-CLIENTE-REACTIVAR-001",
+  "summary": "Implementado POST /api/clients/:id/reactivate con idempotencia (inactive→active, ya activo→sin cambio), protegido con authenticate+requireAdmin. Se añadió ClientService.reactivate, ClientController.reactivate, la ruta en api.routes.ts y tests unitarios + de integración completos.",
+  "criteria": [
+    {
+      "id": "AC-01",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate sobre cliente inactive devuelve 200 con status active y persiste el cambio; si ya estaba active devuelve 200 sin modificar updatedAt (idempotente). Cubierto por test unitario en ClientService.test.ts y test de integración en clients.integration.test.ts."
+    },
+    {
+      "id": "AC-02",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate con id inexistente devuelve 404. Cubierto por test unitario (ClientNotFoundError) y test de integración."
+    },
+    {
+      "id": "AC-03",
+      "status": "covered",
+      "note": "POST /api/clients/:id/reactivate sin rol admin devuelve 403 y el status del cliente no es modificado. Cubierto por test de integración (RN-01)."
+    }
+  ],
+  "testsRun": [
+    { "name": "src/services/ClientService.test.ts", "result": "pass" },
+    { "name": "src/__tests__/clients.integration.test.ts", "result": "pass" },
+    { "name": "src/lib/obfuscate.test.ts", "result": "pass" },
+    { "name": "src/services/FavoriteService.test.ts", "result": "pass" },
+    { "name": "src/__tests__/favorites.integration.test.ts", "result": "pass" }
+  ],
+  "evidence": [
+    {
+      "type": "test_results",
+      "ref": ".sdd/evidence/test-results.txt",
+      "note": "76 tests passing, 0 failing. Incluye los 9 tests nuevos del endpoint reactivate (3 unitarios + 6 de integración)."
+    },
+    {
+      "type": "coverage_report",
+      "ref": "coverage/lcov-report/index.html",
+      "note": "Reporte de cobertura generado por jest --coverage. ClientService.ts al 98.5% stmts / 100% funcs."
+    }
+  ],
+  "deviations": [],
+  "dodSelfAssessment": {
+    "met": true,
+    "blockers": []
+  },
+  "clarificationRequests": []
+}

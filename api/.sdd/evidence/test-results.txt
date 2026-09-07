@@ -1,0 +1,41 @@
+Test suite run: WI-API-CLIENTE-REACTIVAR-001
+Date: 2025-01-31
+
+Command: npm test (jest --coverage)
+Working directory: api/
+
+RESULTS
+-------
+Test Suites: 5 passed, 5 total
+Tests:       76 passed, 76 total
+Snapshots:   0 total
+Time:        ~71s
+
+SUITES PASSED
+-------------
+PASS src/lib/obfuscate.test.ts
+PASS src/services/FavoriteService.test.ts
+PASS src/services/ClientService.test.ts
+PASS src/__tests__/favorites.integration.test.ts
+PASS src/__tests__/clients.integration.test.ts
+
+NEW TESTS (POST /api/clients/:id/reactivate — WI-API-CLIENTE-REACTIVAR-001)
+---------------------------------------------------------------------------
+ClientService > reactivate (AC-01, AC-02)
+  ✓ AC-01 — marks status active and persists the change
+  ✓ AC-01 — is idempotent without write when already active
+  ✓ AC-02 — throws ClientNotFoundError for non-existent id
+
+Clients API > POST /api/clients/:id/reactivate (WI-API-CLIENTE-REACTIVAR-001)
+  ✓ AC-01 — reactivates an inactive client and returns 200 with active status
+  ✓ AC-01 — is idempotent: reactivating an already active client returns 200 with active status
+  ✓ AC-02 — returns 404 when client does not exist
+  ✓ AC-03 / RN-01 — non-admin returns 403 without modifying client status
+  ✓ returns 401 when no token is provided
+  ✓ returns 400 for invalid ObjectId
+
+COVERAGE (files touched by this WI)
+------------------------------------
+ClientService.ts     | 98.5% Stmts | 95.55% Branch | 100% Funcs | 98.38% Lines
+ClientController.ts  |   60% Stmts | 51.66% Branch | 70.37% Funcs | 68.91% Lines
+api.routes.ts        | 96.55% Stmts | 85.71% Branch |   50% Funcs | 96.55% Lines
