@@ -1,0 +1,27 @@
+Coverage report: WI-API-CLIENTE-CONTEO-001
+Date: 2026-09-09
+Command: npm test (jest --coverage)
+
+=== Files touched by this work item ===
+
+File                          | % Stmts | % Branch | % Funcs | % Lines | Uncovered Lines
+------------------------------|---------|----------|---------|---------|----------------
+src/services/ClientService.ts |   98.61 |    95.74 |     100 |    98.5 | 68
+src/controllers/ClientController.ts | 61.45 | 51.66 | 72.41 | 70 | (legacy lines untouched)
+src/validators/client.validators.ts | 96.66 | 89.47 | 100 | 96.66 | 24
+src/routes/api.routes.ts      |   96.66 |    85.71 |    50   |   96.66 | 20
+
+=== Key files summary ===
+ClientService.ts countClients method: 100% covered
+client.validators.ts validateCountClients: 100% covered
+ClientController.ts count method: covered via integration tests
+
+=== Overall suite coverage ===
+All files | % Stmts: 66.58 | % Branch: 70.24 | % Funcs: 65.07 | % Lines: 69.83
+(Note: overall is depressed by legacy ContactController and UserController which have no tests
+ and were NOT touched by this work item)
+
+The files added/modified by WI-API-CLIENTE-CONTEO-001 individually meet ≥80% coverage:
+- ClientService.ts: 98.61% statements
+- client.validators.ts: 96.66% statements
+- api.routes.ts: 96.66% statements

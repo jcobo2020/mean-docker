@@ -7,6 +7,16 @@ import { ClientStatus } from '../models/client';
 import { toPublicClient } from '../lib/obfuscate';
 
 class ClientController {
+  async count(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const status = req.query.status as ClientStatus | undefined;
+      const total = await ClientService.countClients({ status });
+      res.status(200).json({ total });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const { name, email, phone } = req.body;

@@ -58,6 +58,20 @@ export const validateClientId = [
   }
 ];
 
+export const validateCountClients = [
+  query('status')
+    .optional()
+    .isIn(['active', 'inactive'])
+    .withMessage('status must be active or inactive'),
+  (req: Request, res: Response, next: NextFunction) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+  }
+];
+
 export const validateListClients = [
   query('page')
     .default(1)

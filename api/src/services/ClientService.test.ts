@@ -165,4 +165,50 @@ describe('ClientService', () => {
       expect(result.status).toBe('inactive');
     });
   });
+
+  describe('countClients (WI-API-CLIENTE-CONTEO-001)', () => {
+    it('returns 0 when there are no clients', async () => {
+      const total = await ClientService.countClients({});
+      expect(total).toBe(0);
+    });
+
+    it('AC-01 — returns total of all clients when no filter is given', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@example.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@example.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@example.com', status: 'inactive' }
+      ]);
+
+      const total = await ClientService.countClients({});
+      expect(total).toBe(3);
+    });
+
+    it('AC-02 — returns count of active clients when status=active', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@example.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@example.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@example.com', status: 'inactive' }
+      ]);
+
+      const total = await ClientService.countClients({ status: 'active' });
+      expect(total).toBe(2);
+    });
+
+    it('returns count of inactive clients when status=inactive', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@example.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@example.com', status: 'inactive' },
+        { name: 'Inactive Two', email: 'inactive2@example.com', status: 'inactive' }
+      ]);
+
+      const total = await ClientService.countClients({ status: 'inactive' });
+      expect(total).toBe(2);
+    });
+
+    it('returns a non-negative integer', async () => {
+      const total = await ClientService.countClients({});
+      expect(total).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(total)).toBe(true);
+    });
+  });
 });
