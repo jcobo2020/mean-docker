@@ -1,0 +1,39 @@
+Test run: WI-API-CLIENTE-CONTEO-001
+Date: 2026-09-09
+Command: npm test (jest --coverage)
+
+PASS src/lib/obfuscate.test.ts
+PASS src/services/FavoriteService.test.ts
+PASS src/services/ClientService.test.ts
+PASS src/__tests__/favorites.integration.test.ts
+PASS src/__tests__/clients.integration.test.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       91 passed, 91 total
+Snapshots:   0 total
+Time:        45.791 s
+
+=== Tests added by WI-API-CLIENTE-CONTEO-001 ===
+
+ClientService > countClients (WI-API-CLIENTE-CONTEO-001):
+  ✓ returns 0 when there are no clients
+  ✓ AC-01 — returns total of all clients when no filter is given
+  ✓ AC-02 — returns count of active clients when status=active
+  ✓ returns count of inactive clients when status=inactive
+  ✓ returns a non-negative integer
+
+Clients API (WI-CLI-001) > GET /api/clients/count (WI-API-CLIENTE-CONTEO-001):
+  ✓ AC-04 / RN-01 — returns 401 without token
+  ✓ returns 401 with invalid token
+  ✓ AC-01 — returns 200 with total of all clients when no status filter given
+  ✓ AC-01 — returns 200 with total=0 when there are no clients
+  ✓ AC-02 — returns 200 with count of active clients when status=active
+  ✓ returns 200 with count of inactive clients when status=inactive
+  ✓ AC-03 / RN-02 — returns 400 with errors array for invalid status value
+  ✓ AC-03 / RN-02 — returns 400 for status=foo without executing count
+  ✓ response body has only the total field (no pagination, no items)
+  ✓ regular user (non-admin) can access count without 403
+
+=== DoD gates verified ===
+[RN-01] GET /api/clients/count sin token responde 401: PASS
+[RN-02] GET /api/clients/count?status=loquesea responde 400: PASS

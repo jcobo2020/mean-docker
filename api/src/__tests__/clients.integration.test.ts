@@ -688,4 +688,122 @@ describe('Clients API (WI-CLI-001)', () => {
       expect(res.body.status).toBe('error');
     });
   });
+
+  describe('GET /api/clients/count (WI-API-CLIENTE-CONTEO-001)', () => {
+    it('AC-04 / RN-01 — returns 401 without token', async () => {
+      const res = await request(app).get('/api/clients/count');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 401 with invalid token', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', 'Bearer invalid.token.here');
+      expect(res.status).toBe(401);
+    });
+
+    it('AC-01 — returns 200 with total of all clients when no status filter given', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 3 });
+    });
+
+    it('AC-01 — returns 200 with total=0 when there are no clients', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 0 });
+    });
+
+    it('AC-02 — returns 200 with count of active clients when status=active', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count?status=active')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 2 });
+    });
+
+    it('returns 200 with count of inactive clients when status=inactive', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' },
+        { name: 'Inactive Two', email: 'inactive2@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count?status=inactive')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 2 });
+    });
+
+    it('AC-03 / RN-02 — returns 400 with errors array for invalid status value', async () => {
+      const res = await request(app)
+        .get('/api/clients/count?status=loquesea')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('errors');
+      expect(Array.isArray(res.body.errors)).toBe(true);
+      expect(res.body.errors[0]).toMatchObject({
+        msg: expect.any(String),
+        path: 'status'
+      });
+    });
+
+    it('AC-03 / RN-02 — returns 400 for status=foo without executing count', async () => {
+      const res = await request(app)
+        .get('/api/clients/count?status=foo')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('errors');
+    });
+
+    it('response body has only the total field (no pagination, no items)', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Object.keys(res.body)).toEqual(['total']);
+      expect(typeof res.body.total).toBe('number');
+      expect(res.body.total).toBeGreaterThanOrEqual(0);
+      expect(res.body).not.toHaveProperty('page');
+      expect(res.body).not.toHaveProperty('limit');
+      expect(res.body).not.toHaveProperty('items');
+    });
+
+    it('regular user (non-admin) can access count without 403', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('total');
+    });
+  });
 });

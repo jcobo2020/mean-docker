@@ -45,7 +45,19 @@ function isAbsentPhone(phone: unknown): boolean {
   return phone === undefined || phone === null || phone === '';
 }
 
+export interface CountClientsFilter {
+  status?: ClientStatus;
+}
+
 export class ClientService {
+  async countClients(filter: CountClientsFilter): Promise<number> {
+    const query: { status?: ClientStatus } = {};
+    if (filter.status !== undefined) {
+      query.status = filter.status;
+    }
+    return Client.countDocuments(query);
+  }
+
   async create(input: CreateClientInput): Promise<IClient> {
     const email = normalizeEmail(input.email);
     const payload: {

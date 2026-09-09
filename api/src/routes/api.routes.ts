@@ -11,6 +11,7 @@ import { requireAdminForInactiveFilter } from '../middlewares/requireAdminForIna
 import {
   validateCreateClient,
   validateClientId,
+  validateCountClients,
   validateListClients
 } from '../validators/client.validators';
 
@@ -114,6 +115,16 @@ router
     requireAdmin,
     validateCreateClient,
     ClientController.create
+  );
+
+// ⚠️ Orden de registro crítico: /clients/count debe registrarse ANTES que /clients/:id,
+// o Express interpretaría 'count' como valor del parámetro :id (WI-API-CLIENTE-CONTEO-001).
+router
+  .route('/clients/count')
+  .get(
+    authenticate,
+    validateCountClients,
+    ClientController.count
   );
 
 // ⚠️ Orden de registro crítico (ANAL-003 / ARCH-005 de MEAN-API-CLIENTES-FAV-001):
