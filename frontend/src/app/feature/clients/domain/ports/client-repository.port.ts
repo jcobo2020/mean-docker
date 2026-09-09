@@ -10,15 +10,20 @@ import type { Client, ClientListQuery, ClientPage, CreateClientInput } from '../
  * eso es detalle del adaptador. Lo que sí promete es que los fallos llegan como errores de dominio
  * tipados (`client.errors.ts`), nunca como `HttpErrorResponse`.
  *
- * NO declara actualización, y es deliberado: el contrato MEAN-CLI-004 no tiene endpoint de
- * actualización (registrado como CONTRATO-CLIENTES-SIN-ACTUALIZACION-001). Declarar aquí un
- * `update()` que nadie puede implementar sería prometer una capacidad inexistente.
+ * NO declara actualización general, y es deliberado: el contrato MEAN-CLI-004 no tiene endpoint de
+ * actualización (registrado como CONTRATO-CLIENTES-SIN-ACTUALIZACION-001). Solo se declara lo que
+ * el contrato puede implementar: `updateNote` corresponde a `PATCH /api/clients/:id/note`.
  */
 export interface ClientRepositoryPort {
   list(query: ClientListQuery): Observable<ClientPage>;
   findById(id: string): Observable<Client>;
   create(input: CreateClientInput): Observable<Client>;
   deactivate(id: string): Observable<void>;
+  /**
+   * Reemplaza la nota interna del cliente (RN-01: solo existe una nota por cliente).
+   * Pasar `null` elimina la nota. Corresponde a `PATCH /api/clients/:id/note`.
+   */
+  updateNote(id: string, note: string | null): Observable<void>;
 }
 
 /**

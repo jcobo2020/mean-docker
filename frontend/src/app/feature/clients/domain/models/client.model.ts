@@ -17,6 +17,11 @@ export interface ClientSummary {
   phone?: string;
   status: 'active' | 'inactive';
   createdAt: string;
+  /**
+   * Nota interna del cliente. `null` o ausente cuando no hay nota. Solo existe UNA nota por cliente
+   * (RN-01): guardar de nuevo sobrescribe la anterior, no se acumulan.
+   */
+  internalNote?: string | null;
 }
 
 /** Lo que devuelve el detalle: el resumen más la marca de última modificación. */

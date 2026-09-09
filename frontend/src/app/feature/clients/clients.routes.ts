@@ -3,7 +3,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { Routes } from '@angular/router';
 import { authGuard } from '../../@core/guards';
 import { jwtInterceptor } from '../../@core/interceptors/jwtToken.Interceptor';
-import { ListClientsUseCase } from './application/client.use-cases';
+import { ListClientsUseCase, UpdateClientNoteUseCase } from './application/client.use-cases';
 import {
   ListFavoriteClientsUseCase,
   MarkFavoriteUseCase,
@@ -50,6 +50,7 @@ const routes: Routes = [
       { provide: CLIENT_REPOSITORY, useClass: HttpClientRepository },
       { provide: FAVORITE_REPOSITORY, useClass: HttpFavoriteRepository },
       ListClientsUseCase,
+      UpdateClientNoteUseCase,
       MarkFavoriteUseCase,
       UnmarkFavoriteUseCase,
       ListFavoriteClientsUseCase,
