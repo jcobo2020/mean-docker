@@ -1,36 +1,44 @@
 {
   "schemaVersion": 3,
   "workItemCode": "WI-API-CLIENTE-CONTEO-001",
-  "summary": "Implementado el endpoint GET /api/clients/count con autenticación Bearer JWT (authenticate), validación express-validator del parámetro status, método countClients en ClientService usando countDocuments, y controlador delgado. La ruta se registra antes de /clients/:id en api.routes.ts. Tests unitarios (ClientService.test.ts) e integración (clients.integration.test.ts) añadidos, todos en verde (91/91).",
+  "summary": "Tests de contrato e integración para GET /api/clients/count implementados en src/__tests__/client-count.integration.test.ts (12 tests nuevos). El endpoint fue implementado por WI-API-CLIENTE-CONTEO-002 (reutilizado según §6-bis). Este WI aporta los tests que demuestran AC-01 a AC-04 y las puertas DoD RN-01 y RN-02. Reparación final: añadido maxWorkers: 1 en jest.config.js para evitar MongoPoolClearedError causado por ejecución paralela de suites que comparten el singleton de Mongoose. Total suite: 103/103 tests passing.",
   "criteria": [
     {
       "id": "AC-01",
       "status": "covered",
-      "note": "GET /api/clients/count sin parámetros devuelve 200 con { total } igual al número de clientes existentes. Verificado con test unitario en ClientService y test de integración."
+      "note": "GET /api/clients/count sin parámetros devuelve 200 con { total } igual al número de clientes existentes. Verificado con tests de integración en client-count.integration.test.ts: total=0 sin clientes, total=3 con 3 clientes (2 activos + 1 inactivo)."
     },
     {
       "id": "AC-02",
       "status": "covered",
-      "note": "GET /api/clients/count?status=active devuelve 200 con { total } igual al número de clientes activos. Verificado con test unitario en ClientService y test de integración."
+      "note": "GET /api/clients/count?status=active devuelve 200 con { total } igual al número de clientes activos. Verificado con test de integración: total=2 con 2 activos y 1 inactivo. También verificado status=inactive y status=active con 0 resultados."
     },
     {
       "id": "AC-03",
       "status": "covered",
-      "note": "GET /api/clients/count?status=invalido devuelve 400 con { errors: [...] } sin ejecutar el conteo. Verificado con tests de integración (status=loquesea, status=foo). El validador usa express-validator con .isIn(['active','inactive'])."
+      "note": "GET /api/clients/count?status=invalido devuelve 400 con { errors: [...] } sin ejecutar el conteo. Verificado con tests de integración: status=loquesea (ejemplo exacto del DoD), status=foo, status=ALL. El validador express-validator con .isIn(['active','inactive']) rechaza el valor antes de llegar al controlador."
     },
     {
       "id": "AC-04",
       "status": "covered",
-      "note": "GET /api/clients/count sin cabecera Authorization devuelve 401. El middleware authenticate (Bearer-only) se aplica antes que cualquier otra lógica. Verificado con test de integración."
+      "note": "GET /api/clients/count sin cabecera Authorization devuelve 401. El middleware authenticate (Bearer-only) se aplica antes de cualquier lógica. Verificado con tests de integración: sin token → 401, token inválido → 401."
     }
   ],
   "testsRun": [
     {
-      "name": "src/services/ClientService.test.ts",
+      "name": "src/__tests__/client-count.integration.test.ts",
       "result": "pass"
     },
     {
       "name": "src/__tests__/clients.integration.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "src/__tests__/favorites.integration.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "src/services/ClientService.test.ts",
       "result": "pass"
     },
     {
@@ -40,28 +48,28 @@
     {
       "name": "src/services/FavoriteService.test.ts",
       "result": "pass"
-    },
-    {
-      "name": "src/__tests__/favorites.integration.test.ts",
-      "result": "pass"
     }
   ],
   "evidence": [
     {
       "type": "test_results",
       "ref": ".sdd/evidence/test-results-WI-API-CLIENTE-CONTEO-001.txt",
-      "note": "Tests unitarios y de integración passing — 91/91 tests en verde"
+      "note": "103/103 tests en verde — incluye 12 tests de integración nuevos en client-count.integration.test.ts. Gates RN-01 y RN-02 verificados."
     },
     {
       "type": "coverage_report",
       "ref": ".sdd/evidence/coverage-report-WI-API-CLIENTE-CONTEO-001.txt",
-      "note": "Cobertura de los ficheros modificados por este WI: ClientService.ts 98.61%, client.validators.ts 96.66%, api.routes.ts 96.66% — todos ≥80%"
+      "note": "ClientService.ts 98.61%, client.validators.ts 96.66%, api.routes.ts 96.66% — todos ≥80%. El informe HTML completo está en coverage/lcov-report/index.html."
     }
   ],
   "deviations": [
     {
-      "description": "El contrato §2 describe el campo del error 400 como param: 'status', pero express-validator v7.3.2 (versión instalada en el proyecto) emite path en lugar de param en el array errors[].",
-      "reason": "express-validator cambió el nombre del campo de param a path en la versión 7. El contrato se refiere al parámetro que falló (status), no al nombre del campo JSON. Los tests se escribieron contra el comportamiento real de la librería (path) para no falsear el resultado. El frontend que lee errors[0].msg no se ve afectado."
+      "description": "El contrato §2 describe el campo del error 400 como param: 'status', pero express-validator v7.x (versión instalada) emite path en lugar de param en el array errors[].",
+      "reason": "express-validator cambió el nombre del campo de param a path en la versión 7. El contrato se refiere al parámetro que falló (status), no al nombre exacto del campo JSON. Los tests se escriben contra el comportamiento real de la librería usando path para no falsear el resultado. El frontend que lee errors[0].msg no se ve afectado por este cambio de nombre."
+    },
+    {
+      "description": "Se añadió maxWorkers: 1 a jest.config.js para forzar ejecución serial de las suites de test.",
+      "reason": "Las suites de integración comparten el singleton de Mongoose. Jest las ejecutaba en paralelo por defecto, y cuando una suite llamaba a mongoose.disconnect() en afterAll, cancelaba la conexión activa de las otras suites (MongoPoolClearedError en 47 de 103 tests). maxWorkers: 1 serializa la ejecución sin modificar los tests ni el patrón de conexión establecido."
     }
   ],
   "dodSelfAssessment": {
