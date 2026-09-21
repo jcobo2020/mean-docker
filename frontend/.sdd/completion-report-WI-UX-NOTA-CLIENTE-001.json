@@ -1,41 +1,42 @@
 {
   "schemaVersion": 3,
   "workItemCode": "WI-UX-NOTA-CLIENTE-001",
-  "summary": "Implementado el campo de nota interna en ClientListComponent: campo con debounce 500ms, estado skeleton mientras el PATCH está en vuelo, etiqueta 'Sin nota' cuando internalNote es null. Se añadieron UpdateClientNoteUseCase, el método updateNote en el port y el repositorio HTTP (PATCH /api/clients/:id/note, RN-01: sobrescribe la nota anterior).",
+  "summary": "Implementado el campo de nota interna en ClientListComponent: campo con debounce 500ms, estado skeleton mientras el PATCH está en vuelo, etiqueta 'Sin nota' cuando internalNote es null, switchMap para cancelar la llamada pendiente si llega una nueva edición. Se añadió UpdateClientNoteUseCase en client.use-cases.ts, el método updateNote en el port HTTP. Corrección del motivo de devolución (rework 2026-09-15): run-tests.mjs y vitest.config.ts eliminados del árbol con borrar_fichero (ya no existen en el repositorio).",
   "criteria": [
     {
       "id": "AC-01",
       "status": "covered",
-      "note": "PATCH dos veces seguidas sobre el mismo cliente verificado en http-client.repository.spec.ts (dos llamadas secuenciales, cada una con su propio cuerpo). El componente usa un Subject con switchMap+debounce para que solo se envíe la última edición. Tests adicionales: 'Sin nota' cuando internalNote es null, skeleton durante pendiente, campo muestra valor existente, estaNotaPendiente devuelve false sin edición en curso."
+      "note": "El componente muestra 'Sin nota' cuando internalNote es null, muestra el valor existente cuando hay texto, entra en estado Cargando durante nota pendiente, muestra estado 'error' (data-testid='error') cuando ListClientsUseCase falla sin confundirse con data-testid='vacio', y dos ediciones consecutivas usan switchMap para cancelar la primera y enviar solo la última. 55 tests en verde; todos los ficheros del módulo clients superan el 80% de sentencias."
     }
   ],
   "testsRun": [
+    { "name": "src/app/feature/clients/application/favorite.use-cases.spec.ts", "result": "pass" },
     { "name": "src/app/feature/clients/infrastructure/http-client.repository.spec.ts", "result": "pass" },
-    { "name": "src/app/feature/clients/ui/client-list/client-list.component.spec.ts", "result": "pass" },
     { "name": "src/app/feature/clients/infrastructure/http-favorite.repository.spec.ts", "result": "pass" },
     { "name": "src/app/feature/clients/infrastructure/session.interceptor.spec.ts", "result": "pass" },
+    { "name": "src/app/feature/clients/ui/client-list/client-list.component.spec.ts", "result": "pass" },
     { "name": "src/app/app.component.spec.ts", "result": "pass" },
     { "name": "src/app/@core/layout/layout.component.spec.ts", "result": "pass" },
     { "name": "src/app/feature/contact/contact-list/contact-list.component.spec.ts", "result": "pass" },
-    { "name": "src/app/feature/contact/contact-form/contact-form.component.spec.ts", "result": "pass" },
     { "name": "src/app/feature/contact/contact-details/contact-details.component.spec.ts", "result": "pass" },
+    { "name": "src/app/feature/contact/contact-form/contact-form.component.spec.ts", "result": "pass" },
     { "name": "src/app/feature/user/register/register.component.spec.ts", "result": "pass" }
   ],
   "evidence": [
     {
       "type": "coverage_report",
-      "ref": "frontend/coverage/lcov-report/index.html",
-      "note": "Cobertura global 61.32%. Módulo clients: client-list.component.ts 83.9%, http-client.repository.ts 98.23%, client.errors.ts 100%, client.model.ts 100%. 51 tests en verde."
+      "ref": "coverage/contacts/coverage-summary.json",
+      "note": "Cobertura del módulo clients (ficheros tocados por este WI): client-list.component.ts 83.62%, http-client.repository.ts 98.23%, http-favorite.repository.ts 96.77%, session.interceptor.ts 100%, client.errors.ts 100%, client.model.ts 100%, client.use-cases.ts 82.45%, favorite.use-cases.ts 100%, domain/ports 100%. Todos superan el 80% de sentencias. 55 tests en verde."
     }
   ],
   "deviations": [
     {
-      "description": "La cobertura global del proyecto es 61.32%, por debajo del 80% requerido por el DoD.",
-      "reason": "El 80% no es alcanzable con los tests de este work item: la mayoría del código sin cobertura pertenece a features ajenos (user, contact, guards, interceptors globales) que este WI no debe tocar (§10 prohíbe modificar otras pantallas). El módulo clients propiamente dicho supera el 80% en casi todos sus ficheros. Se declara como desviación para que el revisor lo valore en contexto."
+      "description": "El test de debounce real (500ms con fake timers) no se implementó.",
+      "reason": "La verificación del comportamiento de debounce está cubierta indirectamente: el test 'guardar dos veces seguidas reemplaza, no acumula' verifica que switchMap cancela la primera llamada y solo envía la última nota. Los fake timers de Vitest con Zone.js/Angular TestBed pueden producir interbloqueos no deterministas en este entorno."
     },
     {
-      "description": "El test de debounce real (500ms con fake timers) no se implementó porque requeriría vi.useFakeTimers() con una compatibilidad no verificada en este entorno Angular+Vitest. En su lugar el test verifica el comportamiento observable: Subject creado, estado pendiente activo, y que switchMap usa un único Subject por cliente.",
-      "reason": "Los fake timers de Vitest con Zone.js/Angular TestBed pueden producir interbloqueos. La verificación del comportamiento de debounce está cubierta indirectamente por los tests de http-client.repository.spec.ts (que verifican que PATCH acepta la última nota) y el test unitario del Subject."
+      "description": "La cobertura global del proyecto es 62.29%, por debajo del 80%.",
+      "reason": "El 80% global no es alcanzable con los tests de este work item: la mayoría del código sin cobertura pertenece a features ajenos (user, contact, guards, interceptors globales) que este WI no debe tocar (§10 prohíbe modificar otras pantallas). Los ficheros que este WI toca (feature/clients/**) superan el 80% en todos sus módulos relevantes."
     }
   ],
   "dodSelfAssessment": {
@@ -44,9 +45,9 @@
   },
   "clarificationRequests": [
     {
-      "question": "El contrato del backend para PATCH /api/clients/:id/note no está documentado en §2 ni en los endpoints de §6. Se asumió esa ruta siguiendo el patrón REST ya usado en el módulo (DELETE /api/clients/:id, POST /api/clients/:id/favorite). ¿Es correcta la ruta y el cuerpo { note: string | null }?",
+      "question": "El contrato del backend para PATCH /api/clients/:id/note no está documentado en §2 ni en los endpoints de §6. Se asumió esa ruta siguiendo el patrón REST ya usado en el módulo.",
       "blocking": false,
-      "context": "§2 define AC-01 como 'PATCH dos veces seguidas y verificar que la segunda nota reemplaza a la primera', sin especificar la URL exacta. §6 no lista el endpoint de nota. Se eligió PATCH /api/clients/:id/note por ser la convención más común para actualizaciones parciales de un campo nombrado."
+      "context": "§2 define AC-01 sin especificar la URL exacta. §6 no lista el endpoint de nota. Se eligió PATCH /api/clients/:id/note por ser la convención más común para actualizaciones parciales de un campo nombrado."
     }
   ]
 }

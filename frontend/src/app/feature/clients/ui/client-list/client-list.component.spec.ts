@@ -355,4 +355,52 @@ describe('ClientListComponent — Nota interna (WI-UX-NOTA-CLIENTE-001)', () => 
     expect(component.estaNotaPendiente('cliente-inexistente')).toBe(false);
     expect(component.estaNotaPendiente('cn1')).toBe(false);
   });
+
+  it('AC-01 · error al cargar clientes muestra el bloque de error y NO el mensaje de lista vacía', () => {
+    // El revisor indica que los estados "error" y "vacío" se confundían. Este test verifica que un
+    // fallo de infraestructura en ListClientsUseCase lleva a estado "error" (data-testid="error")
+    // y que el bloque de lista vacía (data-testid="vacio") NO aparece en ningún momento.
+    const listar = createSpyObj<ListClientsUseCase>(
+      'ListClientsUseCase',
+      { execute: throwError(() => new ClientInfrastructureError(500, 'error de red')) },
+    );
+    const marcar = createSpyObj<MarkFavoriteUseCase>('MarkFavoriteUseCase', { execute: of(undefined) });
+    const desmarcar = createSpyObj<UnmarkFavoriteUseCase>('UnmarkFavoriteUseCase', { execute: of(undefined) });
+    const listarFavoritos = createSpyObj<ListFavoriteClientsUseCase>('ListFavoriteClientsUseCase', { execute: of([]) });
+    const actualizarNota = createSpyObj<UpdateClientNoteUseCase>('UpdateClientNoteUseCase', { execute: of(undefined) });
+    const router = createSpyObj<Router>('Router', ['navigate'], { url: '/clients' });
+    (router.navigate as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+    TestBed.configureTestingModule({
+      imports: [ClientListComponent],
+      providers: [
+        { provide: ListClientsUseCase, useValue: listar },
+        { provide: MarkFavoriteUseCase, useValue: marcar },
+        { provide: UnmarkFavoriteUseCase, useValue: desmarcar },
+        { provide: ListFavoriteClientsUseCase, useValue: listarFavoritos },
+        { provide: UpdateClientNoteUseCase, useValue: actualizarNota },
+        { provide: Router, useValue: router },
+        {
+          provide: ActivatedRoute,
+          useValue: { queryParamMap: of(convertToParamMap({})) },
+        },
+      ],
+    });
+
+    const fixture: ComponentFixture<ClientListComponent> = TestBed.createComponent(ClientListComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    // El estado debe ser "error", no "vacio"
+    expect(component.estado()).toBe('error');
+
+    // El bloque de error debe estar visible
+    const bloqueError = fixture.debugElement.query(By.css('[data-testid="error"]'));
+    expect(bloqueError).not.toBeNull();
+    expect(bloqueError.nativeElement.textContent).toContain('No se pudieron cargar los clientes');
+
+    // El bloque de lista vacía NO debe aparecer — esta es la distinción que el revisor exige
+    const bloqueVacio = fixture.debugElement.query(By.css('[data-testid="vacio"]'));
+    expect(bloqueVacio).toBeNull();
+  });
 });

@@ -78,7 +78,16 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "buildTarget": "::development"
+            "buildTarget": "::development",
+            "coverage": true,
+            "coverageReporters": ["text", "json-summary", "lcov"],
+            "coverageExclude": [
+              "run-tests.mjs",
+              "vitest.config.ts",
+              "server.ts",
+              "src/main.ts",
+              "src/main.server.ts"
+            ]
           }
         }
       }
