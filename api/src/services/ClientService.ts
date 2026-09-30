@@ -10,6 +10,7 @@ export interface ListClientsInput {
   page: number;
   limit: number;
   status: ClientStatus;
+  search?: string;
 }
 
 export interface ListClientsResult {
@@ -47,6 +48,17 @@ function isAbsentPhone(phone: unknown): boolean {
 
 export interface CountClientsFilter {
   status?: ClientStatus;
+}
+
+/**
+ * Escapes all regex special characters so user input is treated as a literal string.
+ * Exported only for unit-testing purposes; use only inside ClientService.
+ * RN-01: prevents regex injection — searching ".*" returns only clients whose name
+ * literally contains those two characters.
+ */
+export function escapeRegex(text: string): string {
+  // eslint-disable-next-line no-useless-escape
+  return text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export class ClientService {
@@ -91,15 +103,21 @@ export class ClientService {
   }
 
   async list(input: ListClientsInput): Promise<ListClientsResult> {
-    const filter = { status: input.status };
+    const filter: { status: ClientStatus; name?: RegExp } = { status: input.status };
+
+    if (input.search !== undefined && input.search !== '') {
+      filter.name = new RegExp(escapeRegex(input.search), 'i');
+    }
+
     const skip = (input.page - 1) * input.limit;
 
     const [items, total] = await Promise.all([
       Client.find(filter)
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
-        .limit(input.limit),
-      Client.countDocuments(filter)
+        .limit(input.limit)
+        .maxTimeMS(5000),
+      Client.countDocuments(filter).maxTimeMS(5000)
     ]);
 
     return {

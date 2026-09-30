@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import Client from '../models/client';
-import ClientService from './ClientService';
+import ClientService, { escapeRegex } from './ClientService';
 
 describe('ClientService', () => {
   let mongoServer: MongoMemoryServer;
@@ -210,5 +210,176 @@ describe('ClientService', () => {
       expect(total).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(total)).toBe(true);
     });
+  });
+
+  describe('list with search (WI-API-CLIENTE-BUSQUEDA-001)', () => {
+    it('AC-01 — finds by name case-insensitively', async () => {
+      await Client.create([
+        { name: 'Ana Garcia', email: 'ana@example.com', status: 'active' },
+        { name: 'Carlos', email: 'carlos@example.com', status: 'active' },
+        { name: 'Banana', email: 'banana@example.com', status: 'active' }
+      ]);
+
+      const result = await ClientService.list({
+        page: 1,
+        limit: 20,
+        status: 'active',
+        search: 'ANA'
+      });
+
+      expect(result.total).toBe(2);
+      expect(result.items.map((c) => c.name).sort()).toEqual(['Ana Garcia', 'Banana'].sort());
+    });
+
+    it('AC-06 — returns empty list when no match', async () => {
+      await Client.create([
+        { name: 'Carlos', email: 'carlos@example.com', status: 'active' }
+      ]);
+
+      const result = await ClientService.list({
+        page: 1,
+        limit: 20,
+        status: 'active',
+        search: 'zzznomatch'
+      });
+
+      expect(result.total).toBe(0);
+      expect(result.items).toHaveLength(0);
+    });
+
+    it('AC-02 / RN-01 — treats ".*" as a literal search, not a regex wildcard', async () => {
+      await Client.create([
+        { name: 'Ana', email: 'ana@example.com', status: 'active' },
+        { name: 'Ana.*Perez', email: 'aperez@example.com', status: 'active' }
+      ]);
+
+      const result = await ClientService.list({
+        page: 1,
+        limit: 20,
+        status: 'active',
+        search: '.*'
+      });
+
+      // Only the client whose name literally contains ".*"
+      expect(result.total).toBe(1);
+      expect(result.items[0].name).toBe('Ana.*Perez');
+    });
+
+    it('AC-07 / RN-04 — does not search in email field', async () => {
+      await Client.create([
+        { name: 'Luis', email: 'ana@example.com', status: 'active' }
+      ]);
+
+      const result = await ClientService.list({
+        page: 1,
+        limit: 20,
+        status: 'active',
+        search: 'ana'
+      });
+
+      // "ana" is in the email but not in the name "Luis"
+      expect(result.total).toBe(0);
+      expect(result.items).toHaveLength(0);
+    });
+
+    it('AC-08 — pagination and total count apply only to matching documents', async () => {
+      const matching = Array.from({ length: 25 }, (_, i) => ({
+        name: `Ana Client ${i + 1}`,
+        email: `ana${i + 1}@example.com`,
+        status: 'active' as const
+      }));
+      const nonMatching = Array.from({ length: 5 }, (_, i) => ({
+        name: `Other Client ${i + 1}`,
+        email: `other${i + 1}@example.com`,
+        status: 'active' as const
+      }));
+
+      await Client.create([...matching, ...nonMatching]);
+
+      const result = await ClientService.list({
+        page: 2,
+        limit: 10,
+        status: 'active',
+        search: 'ana'
+      });
+
+      expect(result.total).toBe(25);
+      expect(result.items).toHaveLength(10);
+      expect(result.page).toBe(2);
+      expect(result.limit).toBe(10);
+      expect(result.items.every((c) => /ana/i.test(c.name))).toBe(true);
+    });
+
+    it('AC-05 — without search returns all items unchanged', async () => {
+      await Client.create([
+        { name: 'Alice', email: 'alice@example.com', status: 'active' },
+        { name: 'Bob', email: 'bob@example.com', status: 'active' }
+      ]);
+
+      const result = await ClientService.list({
+        page: 1,
+        limit: 20,
+        status: 'active'
+      });
+
+      expect(result.total).toBe(2);
+      expect(result.items).toHaveLength(2);
+    });
+  });
+});
+
+// escapeRegex is a pure function — no MongoDB needed
+describe('escapeRegex (RN-01)', () => {
+  it('escapes dot and star so they match literally', () => {
+    expect(escapeRegex('.')).toBe('\\.');
+    expect(escapeRegex('*')).toBe('\\*');
+  });
+
+  it('escapes plus, question mark, caret', () => {
+    expect(escapeRegex('+')).toBe('\\+');
+    expect(escapeRegex('?')).toBe('\\?');
+    expect(escapeRegex('^')).toBe('\\^');
+  });
+
+  it('escapes curly braces, parentheses, pipe', () => {
+    expect(escapeRegex('{')).toBe('\\{');
+    expect(escapeRegex('}')).toBe('\\}');
+    expect(escapeRegex('(')).toBe('\\(');
+    expect(escapeRegex(')')).toBe('\\)');
+    expect(escapeRegex('|')).toBe('\\|');
+  });
+
+  it('escapes square brackets and backslash', () => {
+    expect(escapeRegex('[')).toBe('\\[');
+    expect(escapeRegex(']')).toBe('\\]');
+    expect(escapeRegex('\\')).toBe('\\\\');
+  });
+
+  it('escapes the dollar sign', () => {
+    const dollar = String.fromCharCode(36);
+    const escaped = escapeRegex(dollar);
+    expect(escaped).toBe('\\' + dollar);
+  });
+
+  it('escapes ".*" so the resulting regex matches that literal sequence', () => {
+    const escaped = escapeRegex('.*');
+    const rx = new RegExp(escaped, 'i');
+
+    // Matches the literal two-character sequence
+    expect(rx.test('foo.*bar')).toBe(true);
+    // Does NOT match an arbitrary string (dot is not a wildcard)
+    expect(rx.test('foobar')).toBe(false);
+    expect(rx.test('fooxbar')).toBe(false);
+  });
+
+  it('leaves plain alphanumeric text unchanged', () => {
+    expect(escapeRegex('Ana')).toBe('Ana');
+    expect(escapeRegex('hello world')).toBe('hello world');
+    expect(escapeRegex('Jose')).toBe('Jose');
+  });
+
+  it('escapes mixed input correctly', () => {
+    expect(escapeRegex('a.b*c')).toBe('a\\.b\\*c');
+    expect(escapeRegex('[test]')).toBe('\\[test\\]');
   });
 });

@@ -42,8 +42,9 @@ class ClientController {
       const page = Number(req.query.page);
       const limit = Number(req.query.limit);
       const status = req.query.status as ClientStatus;
+      const search = req.query.search as string | undefined;
 
-      const result = await ClientService.list({ page, limit, status });
+      const result = await ClientService.list({ page, limit, status, search });
       return res.status(200).json({
         status: 'success',
         message: 'Clients retrieved successfully',
