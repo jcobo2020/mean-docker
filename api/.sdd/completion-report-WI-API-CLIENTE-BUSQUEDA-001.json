@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 4,
+  "workItemCode": "WI-API-CLIENTE-BUSQUEDA-001",
+  "summary": "Implementados todos los criterios de HU-001: búsqueda por nombre en GET /api/clients mediante el parámetro opcional search (2-100 chars tras trim), con escape de caracteres regex (RN-01), validación en validateListClients (RN-02), conservación de la barrera 403 para no-admins antes de la validación (RN-03) y búsqueda exclusivamente en el campo name (RN-04). Tests unitarios de escapeRegex y ClientService.list con search en ClientService.test.ts; tests de integración de todos los ACs en clients.integration.test.ts. 133 tests en verde.",
+  "criteria": [
+    {
+      "id": "AC-01",
+      "status": "covered",
+      "note": "Test de integración 'AC-01 — returns active clients whose name contains the search term (case-insensitive)' en clients.integration.test.ts. Test unitario 'AC-01 — finds by name case-insensitively' en ClientService.test.ts. ClientService.list construye new RegExp(escapeRegex(search), 'i') sobre el campo name."
+    },
+    {
+      "id": "AC-02",
+      "status": "covered",
+      "note": "Test de integración 'AC-02/RN-01 — \".*\" is treated as a literal, not a regex wildcard' en clients.integration.test.ts y test unitario equivalente en ClientService.test.ts. La función escapeRegex exportada de ClientService.ts escapa todos los metacaracteres de regex antes de construir el RegExp."
+    },
+    {
+      "id": "AC-03",
+      "status": "covered",
+      "note": "Tres tests de integración en clients.integration.test.ts: search=a (1 char), search=%20%20%20 (solo espacios, trim→vacío) y search de 101 chars responden 400 con {status:'error', message:'search must be between 2 and 100 characters'}. Validado con .trim().isLength({min:2,max:100}) en validateListClients (client.validators.ts)."
+    },
+    {
+      "id": "AC-04",
+      "status": "covered",
+      "note": "Dos tests de integración en clients.integration.test.ts: no-admin con search=ana&status=inactive y no-admin con search=a&status=inactive ambos reciben 403 CLIENTS_FORBIDDEN_FILTER, porque requireAdminForInactiveFilter va antes que validateListClients en la cadena de middlewares."
+    },
+    {
+      "id": "AC-05",
+      "status": "covered",
+      "note": "Test de integración 'AC-05 — without search, returns full list with correct ids and total' en clients.integration.test.ts. Test unitario 'AC-05 — without search returns all items unchanged' en ClientService.test.ts. Sin search, filter no incluye el campo name y el resultado es idéntico al listado existente."
+    },
+    {
+      "id": "AC-06",
+      "status": "covered",
+      "note": "Test de integración 'AC-06 — no coincidences returns 200 with items [] and total 0' en clients.integration.test.ts. Test unitario equivalente en ClientService.test.ts. La respuesta es 200 con items:[] y total:0, sin errores."
+    },
+    {
+      "id": "AC-07",
+      "status": "covered",
+      "note": "Test de integración 'AC-07/RN-04 — search term found only in email does not return the client' en clients.integration.test.ts: cliente name='Luis' email='ana@example.com', search=ana → total:0. Test unitario equivalente en ClientService.test.ts. El filtro Mongo solo aplica sobre el campo name."
+    },
+    {
+      "id": "AC-08",
+      "status": "covered",
+      "note": "Test de integración 'AC-08 — total and pagination count only matching documents' en clients.integration.test.ts: 25 clientes con 'ana' + 5 sin 'ana', ?search=ana&page=2&limit=10 → 10 items y total=25. Test unitario equivalente en ClientService.test.ts. find y countDocuments reciben el mismo objeto filter."
+    }
+  ],
+  "testsRun": [
+    {
+      "name": "api/src/services/ClientService.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "api/src/__tests__/clients.integration.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "api/src/__tests__/client-count.integration.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "api/src/__tests__/favorites.integration.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "api/src/services/FavoriteService.test.ts",
+      "result": "pass"
+    },
+    {
+      "name": "api/src/lib/obfuscate.test.ts",
+      "result": "pass"
+    }
+  ],
+  "evidence": [
+    {
+      "type": "test_results",
+      "ref": ".sdd/evidence/test-results.txt",
+      "note": "Salida completa de npm test: 133 tests passing, 6 suites en verde. Incluye detalle de cobertura por fichero y listado de tests que cubren cada AC de este WI."
+    },
+    {
+      "type": "coverage_report",
+      "ref": "coverage/coverage-summary.json",
+      "note": "Cobertura de los ficheros del WI: ClientService.ts 98.68% stmts / 96.07% branches / 100% funcs; client.validators.ts 96.66% stmts / 89.47% branches / 100% funcs. Ambos superan el umbral del 80%."
+    }
+  ],
+  "deviations": [],
+  "conventions": [
+    {
+      "code": "MINED-CONTACT-API-TS-001",
+      "status": "seguida",
+      "note": "1: cadena de middlewares authenticate→attachAuthenticatedUser→requireAdminForInactiveFilter→validateListClients→ClientController.list, sin cambios. 2: authenticate (no authMiddleware) en rutas de clients. 3: attachAuthenticatedUser presente. 4: requireAdminForInactiveFilter en posición de autorización. 5: DuplicateEmailError y ClientNotFoundError en ClientService.ts. 6: controller captura errores de dominio y llama next(error) para el resto. 7: toPublicClient en todas las respuestas. 8: obfuscateValue en lib/obfuscate.ts. 9: IClient en models/client.ts. 10: ListClientsInput con search?: string. 11: lógica en ClientService, escapeRegex solo allí. 12: ClientController con firma estándar. 13: middlewares con sufijo .middleware.ts. 14: req.user declarado en authenticate.middleware.ts. 15: createApp() en app.ts. 16: connectDB en config/database.ts. 17: tests unitarios junto al servicio, integración en __tests__/. 18: unicidad en modelo. 19: normalizeEmail en servicio. 20: validateListClients en client.validators.ts."
+    }
+  ],
+  "dodSelfAssessment": {
+    "met": true,
+    "blockers": []
+  },
+  "clarificationRequests": []
+}

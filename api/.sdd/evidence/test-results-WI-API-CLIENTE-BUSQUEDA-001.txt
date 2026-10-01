@@ -41,41 +41,51 @@ All files                                     |   66.78 |    70.45 |   65.23 |  
 Test Suites: 6 passed, 6 total
 Tests:       133 passed, 133 total
 Snapshots:   0 total
+Time:        7.414 s
 
 KEY FILES FOR THIS WORK ITEM:
-  ClientService.ts           — Statements: 98.68% | Branches: 96.07% | Funcs: 100% | Lines: 98.59%
-  client.validators.ts       — Statements: 96.66% | Branches: 89.47% | Funcs: 100% | Lines: 96.66%
+  ClientService.ts       — Stmts: 98.68% | Branches: 96.07% | Funcs: 100% | Lines: 98.59%
+  client.validators.ts   — Stmts: 96.66% | Branches: 89.47% | Funcs: 100% | Lines: 96.66%
 
 TESTS COVERING WI-API-CLIENTE-BUSQUEDA-001:
-  src/services/ClientService.test.ts
-    ✓ list with search / AC-01 — finds by name case-insensitively
-    ✓ list with search / AC-06 — returns empty list when no match
-    ✓ list with search / AC-02/RN-01 — treats ".*" as a literal search, not a regex wildcard
-    ✓ list with search / AC-07/RN-04 — does not search in email field
-    ✓ list with search / AC-08 — pagination and total count apply only to matching documents
-    ✓ list with search / AC-05 — without search returns all items unchanged
-    ✓ escapeRegex / escapes dot and star so they match literally
-    ✓ escapeRegex / escapes plus, question mark, caret
-    ✓ escapeRegex / escapes curly braces, parentheses, pipe
-    ✓ escapeRegex / escapes square brackets and backslash
-    ✓ escapeRegex / escapes the dollar sign
-    ✓ escapeRegex / escapes ".*" so the resulting regex matches that literal sequence
-    ✓ escapeRegex / leaves plain alphanumeric text unchanged
-    ✓ escapeRegex / escapes mixed input correctly
 
-  src/__tests__/clients.integration.test.ts (GET /api/clients?search= describe block)
+  src/services/ClientService.test.ts — list with search (WI-API-CLIENTE-BUSQUEDA-001):
+    ✓ AC-01 — finds by name case-insensitively
+    ✓ AC-06 — returns empty list when no match
+    ✓ AC-02 / RN-01 — treats ".*" as a literal search, not a regex wildcard
+    ✓ AC-07 / RN-04 — does not search in email field
+    ✓ AC-08 — pagination and total count apply only to matching documents
+    ✓ AC-05 — without search returns all items unchanged
+
+  src/services/ClientService.test.ts — escapeRegex (RN-01):
+    ✓ escapes dot and star so they match literally
+    ✓ escapes plus, question mark, caret
+    ✓ escapes curly braces, parentheses, pipe
+    ✓ escapes square brackets and backslash
+    ✓ escapes the dollar sign
+    ✓ escapes ".*" so the resulting regex matches that literal sequence
+    ✓ leaves plain alphanumeric text unchanged
+    ✓ escapes mixed input correctly
+
+  src/__tests__/clients.integration.test.ts — GET /api/clients?search= (WI-API-CLIENTE-BUSQUEDA-001):
     ✓ AC-01 — returns active clients whose name contains the search term (case-insensitive)
     ✓ AC-05 — without search, returns full list with correct ids and total
     ✓ AC-06 — no coincidences returns 200 with items [] and total 0
     ✓ AC-08 — total and pagination count only matching documents
-    ✓ AC-02/RN-01 — ".*" is treated as a literal, not a regex wildcard
-    ✓ AC-03/RN-02 — search=a (1 char) returns 400 with explicit message
-    ✓ AC-03/RN-02 — search of only spaces (after trim = empty) returns 400
-    ✓ AC-03/RN-02 — search of 101 characters returns 400
-    ✓ AC-04/RN-03 — non-admin with search=ana&status=inactive returns 403
-    ✓ AC-04/RN-03 — non-admin with search=a (invalid) &status=inactive returns 403 (auth wins)
+    ✓ AC-02 / RN-01 — ".*" is treated as a literal, not a regex wildcard
+    ✓ AC-03 / RN-02 — search=a (1 char) returns 400 with explicit message
+    ✓ AC-03 / RN-02 — search of only spaces (after trim = empty) returns 400
+    ✓ AC-03 / RN-02 — search of 101 characters returns 400
+    ✓ AC-04 / RN-03 — non-admin with search=ana&status=inactive returns 403
+    ✓ AC-04 / RN-03 — non-admin with search=a (invalid) &status=inactive returns 403 (auth wins)
     ✓ RN-03 — admin with search=a&status=inactive returns 400 (validation acts for admin)
-    ✓ AC-07/RN-04 — search term found only in email does not return the client
+    ✓ AC-07 / RN-04 — search term found only in email does not return the client
     ✓ search of exactly 100 characters returns 200
     ✓ search of exactly 2 characters returns 200
     ✓ results with search are ordered createdAt desc, _id desc
+
+DOD GATES (§8):
+  🔒 [RN-01] test: ".*" as literal → only Ana.*Pérez returned      PASS
+  🔒 [RN-02] test: search=a, spaces, 101 chars → 400               PASS
+  🔒 [RN-03] test: non-admin search+inactive → 403 (both cases)    PASS
+  🔒 [RN-04] test: search=ana with email=ana@x.com, name=Luis → 0  PASS
