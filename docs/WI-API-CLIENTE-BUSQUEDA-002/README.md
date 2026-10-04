@@ -2,23 +2,27 @@
 
 ## Qué pide la spec
 
-La spec [ancla:user_story HU-001] resuelve un problema de usabilidad del frontend: para localizar a un cliente concreto, el usuario debe recorrer el listado página a página. La solución es añadir un parámetro opcional `search` al endpoint existente [spec:endpoint GET /api/clients] que filtre el resultado a los clientes cuyo nombre contiene el texto introducido, sin distinguir mayúsculas. No se crea ninguna ruta nueva —`/api/clients/search` chocaría con `/api/clients/:id`— y cuando `search` está ausente el listado se comporta exactamente igual que antes [spec:acceptance_criteria AC-05].
+La spec [ancla:user_story HU-001] resuelve un problema concreto del frontend: para localizar un cliente, la interfaz debe recorrer el listado página a página, sin ningún mecanismo de filtrado por texto. La solución consiste en añadir al endpoint existente [ancla:endpoint GET /api/clients] un parámetro opcional `search` que devuelve únicamente los clientes cuyo **nombre** contiene el texto introducido, sin distinguir mayúsculas [spec:acceptance_criteria AC-01].
 
-El diseño está guiado por dos restricciones que definen qué se busca y cómo:
+La spec no crea ninguna ruta nueva. La alternativa `/api/clients/search` fue descartada explícitamente porque colisiona con el segmento dinámico `/api/clients/:id` [spec:endpoint GET /api/clients]. El endpoint existente conserva su comportamiento íntegro cuando `search` está ausente [spec:acceptance_criteria AC-05].
 
-- **Solo el nombre.** El email sale ofuscado en todas las respuestas mediante `toPublicClient` y buscarlo funcionaría como un oráculo para desvelarlo carácter a carácter [spec:business_rule RN-04]. Por eso el filtro Mongo aplica exclusivamente sobre el campo `name` [spec:acceptance_criteria AC-07].
-- **Texto literal, escapado.** El valor que el usuario escribe nunca llega a Mongo como expresión regular directa: todos los metacaracteres de regex (`. * + ? ^ $ { } ( ) | [ ] \`) se escapan antes de construir el `RegExp` [spec:business_rule RN-01], de forma que buscar `.*` devuelve solo los clientes cuyo nombre contiene literalmente esos dos caracteres [spec:acceptance_criteria AC-02].
+Las reglas esenciales que gobiernan la búsqueda son cuatro:
 
-La validación del parámetro se realiza en el validador `validateListClients` con `.trim()` antes de medir la longitud: `search` debe tener entre 2 y 100 caracteres una vez eliminados los espacios del extremo; fuera de ese rango —incluido un valor formado solo por espacios— la respuesta es un 400 [spec:business_rule RN-02] [spec:acceptance_criteria AC-03] [spec:error VALIDATION_ERROR].
+- **Escape de metacaracteres** [spec:business_rule RN-01]: el texto del usuario se trata siempre como literal, nunca como expresión regular. Caracteres como `.*` o `?` no tienen significado especial. La búsqueda distingue acentos (`«Jose»` no encuentra a `«José»`), ya que la flag `i` de JavaScript no normaliza diacríticos.
+- **Longitud mínima y máxima** [spec:business_rule RN-02]: `search` requiere entre 2 y 100 caracteres después de eliminar los espacios de los extremos. Un valor fuera de ese rango —incluyendo una cadena formada solo por espacios— produce un [spec:error VALIDATION_ERROR] HTTP 400.
+- **Barrera de autorización intacta** [spec:business_rule RN-03]: la búsqueda no amplía los permisos de ningún usuario. El middleware `requireAdminForInactiveFilter` se ejecuta antes que la validación del parámetro `search`; un no administrador que solicite `status=inactive` recibe siempre [spec:error CLIENTS_FORBIDDEN_FILTER] HTTP 403, aunque `search` sea simultáneamente inválido.
+- **Solo se busca en `name`** [spec:business_rule RN-04]: el campo `email` sale ofuscado en todas las respuestas mediante `toPublicClient`. Permitir búsqueda sobre él convertiría el endpoint en un oráculo que revelaría la dirección carácter a carácter.
 
-La barrera de autorización no cambia: el middleware `requireAdminForInactiveFilter` precede al validador en la cadena, de modo que un no administrador que solicita `status=inactive` recibe un 403 [spec:error CLIENTS_FORBIDDEN_FILTER] incluso si `search` también sería inválido [spec:business_rule RN-03] [spec:acceptance_criteria AC-04]. Cuando no hay coincidencias la respuesta es 200 con `items: []` y `total: 0`, no un error [spec:acceptance_criteria AC-06]. La paginación y el total cuentan únicamente los documentos que coinciden con el filtro [spec:acceptance_criteria AC-08].
+Cuando la búsqueda no produce coincidencias, la respuesta es HTTP 200 con `items: []` y `total: 0` [spec:acceptance_criteria AC-06]. El total y la paginación reflejan únicamente los documentos que coinciden con el filtro [spec:acceptance_criteria AC-08]. El email ofuscado no puede sondearse a través del parámetro `search` [spec:acceptance_criteria AC-07].
+
+---
 
 ## El trabajo y su historia
 
 | work item | tipo | estado | asignado a |
 |---|---|---|---|
 | WI-API-CLIENTE-BUSQUEDA-001 | Backend | Mergeado | Jorge Developer |
-| WI-API-CLIENTE-BUSQUEDA-002 | Documentación | Asignado | Jorge Developer |
+| WI-API-CLIENTE-BUSQUEDA-002 | Documentación | MR Abierto · en revisión | Jorge Developer |
 
 | fecha y hora (UTC) | work item | qué pasó | quién | motivo |
 |---|---|---|---|---|
@@ -36,12 +40,19 @@ La barrera de autorización no cambia: el middleware `requireAdminForInactiveFil
 | 2026-10-01 21:08 | WI-API-CLIENTE-BUSQUEDA-001 | PR #18 mergeado | git | WI-API-CLIENTE-BUSQUEDA-001 · implementación autónoma |
 | 2026-10-04 01:45 | WI-API-CLIENTE-BUSQUEDA-001 | «MR Abierto · en revisión» → «Validado» | Administrador Global | — |
 | 2026-10-04 01:45 | WI-API-CLIENTE-BUSQUEDA-001 | «Validado» → «Mergeado» | Administrador Global | — |
+| 2026-10-04 01:51 | WI-API-CLIENTE-BUSQUEDA-002 | PR #21 abierto | git | WI-API-CLIENTE-BUSQUEDA-002 · documento técnico |
+| 2026-10-04 01:51 | WI-API-CLIENTE-BUSQUEDA-002 | «Asignado» → «En Progreso» | sin actor registrado | automático: push 414b26010c84 en docs/MEAN-API-CLIENTE-BUSQUEDA-001/WI-API-CLIENTE-BUSQUEDA-002 |
+| 2026-10-04 01:51 | WI-API-CLIENTE-BUSQUEDA-002 | «En Progreso» → «MR Abierto · en revisión» | sin actor registrado | automático: pull request #21 en docs/MEAN-API-CLIENTE-BUSQUEDA-001/WI-API-CLIENTE-BUSQUEDA-002 |
 
-La spec se dividió en dos work items: la implementación backend [wi:WI-API-CLIENTE-BUSQUEDA-001] y este documento de API. Ambos nacieron simultáneamente el 2026-09-30 a las 03:36 UTC [estado:WI-API-CLIENTE-BUSQUEDA-001] [estado:WI-API-CLIENTE-BUSQUEDA-002].
+El trabajo de la spec se repartió en dos work items: [wi:WI-API-CLIENTE-BUSQUEDA-001] para el backend y este documento para la capa de documentación.
 
-El work item de backend recorrió su ciclo completo en poco más de cuatro días: pasó a «Contexto Listo» un minuto después de nacer, fue aprobado y asignado a las 03:38, y el agente developer lo llevó a «En Progreso» a las 03:39 [estado:WI-API-CLIENTE-BUSQUEDA-001]. El PR #18 se abrió a las 03:53 del mismo día [git:PR #18] y quedó en revisión de forma automática. Mergeó el 2026-10-01 a las 21:08 UTC y fue validado y cerrado formalmente el 2026-10-04 a las 01:45 UTC [estado:WI-API-CLIENTE-BUSQUEDA-001].
+El work item de backend nació el 2026-09-30 a las 03:36 UTC y alcanzó el estado «En Progreso» en menos de tres minutos [estado:WI-API-CLIENTE-BUSQUEDA-001]. El agente developer abrió [git:PR #18] a las 03:53 del mismo día. El PR permaneció en revisión hasta el 2026-10-01 a las 21:08 UTC, cuando fue mergeado [estado:WI-API-CLIENTE-BUSQUEDA-001]. La transición formal a «Validado» y luego a «Mergeado» se registró el 2026-10-04 a las 01:45 UTC [estado:WI-API-CLIENTE-BUSQUEDA-001].
 
-Este work item de documentación recibió su context pack más de ocho horas después del nacimiento (2026-09-30 11:55 UTC) y fue aprobado y asignado el 2026-10-01 a las 14:34 UTC, antes de que el PR de backend mergeara [estado:WI-API-CLIENTE-BUSQUEDA-002]. La cronología no registra ningún estado intermedio entre «Asignado» y el momento de redacción de este documento, lo que constituye un hueco en el historial de WI-API-CLIENTE-BUSQUEDA-002.
+Este work item de documentación (WI-API-CLIENTE-BUSQUEDA-002) nació en paralelo el 2026-09-30 a las 03:36 UTC, pero su contexto no estuvo listo hasta las 11:55 del mismo día [estado:WI-API-CLIENTE-BUSQUEDA-002]. Fue aprobado y asignado el 2026-10-01 a las 14:34 UTC [estado:WI-API-CLIENTE-BUSQUEDA-002], y [git:PR #21] se abrió el 2026-10-04 a las 01:51 UTC, tras la validación del backend [estado:WI-API-CLIENTE-BUSQUEDA-002]. En el momento de redactar este documento, el PR #21 permanece abierto y en revisión.
+
+La cronología no muestra ningún hueco anómalo: la secuencia de estados es continua y coherente con los eventos de git registrados.
+
+---
 
 ## Lo que se tocó
 
@@ -67,7 +78,7 @@ Este work item de documentación recibió su context pack más de ocho horas des
 - Componentes: contact-api-ts
 - Specs relacionadas: MEAN-API-CLIENTES-FAV-001, MINED-CONTACT-API-TS-001
 
-### Ficheros del PR #18, mergeado el 2026-10-04 01:45 UTC: 10 ficheros, +1136 −40
+### Ficheros del PR #18, mergeado el 2026-10-01 21:08 UTC: 10 ficheros, +1136 −40
 | fichero | cambio | + | − |
 |---|---|---|---|
 | `api/src/__tests__/clients.integration.test.ts` | modificado | 255 | 0 |
@@ -82,18 +93,26 @@ Este work item de documentación recibió su context pack más de ocho horas des
 
 No se listan los ficheros del propio documento: `docs/WI-API-CLIENTE-BUSQUEDA-002/README.md`.
 
-El backend se entregó en [git:PR #18] con 10 ficheros modificados o añadidos (+1136 −40) [informe:WI-API-CLIENTE-BUSQUEDA-001]. Los cambios funcionales se concentran en cuatro ficheros:
+El único work item de implementación es [wi:WI-API-CLIENTE-BUSQUEDA-001], mergeado mediante [git:PR #18] (10 ficheros, +1136 −40). Los cambios cubrieron los ocho criterios de aceptación de la spec [informe:WI-API-CLIENTE-BUSQUEDA-001].
 
-- **`api/src/services/ClientService.ts`** (+21 −3): contiene la función `escapeRegex` y la lógica que, cuando `search` está presente, construye `new RegExp(escapeRegex(search), 'i')` y lo incorpora al filtro de `find` y `countDocuments` sobre el campo `name` [codigo:GET /api/clients] [informe:WI-API-CLIENTE-BUSQUEDA-001].
-- **`api/src/validators/client.validators.ts`** (+5 −0): añade la validación de `search` con `.trim().isLength({min:2, max:100})` y mensaje explícito dentro de `validateListClients` [informe:WI-API-CLIENTE-BUSQUEDA-001].
-- **`api/src/controllers/ClientController.ts`** (+202 −1): ajustes al controlador para propagar el parámetro `search` hacia el servicio [informe:WI-API-CLIENTE-BUSQUEDA-001].
-- **`api/src/__tests__/clients.integration.test.ts`** (+255 −0) y **`api/src/services/ClientService.test.ts`** (+172 −1): pruebas que cubren los ocho criterios de aceptación, tanto a nivel de integración como unitario [informe:WI-API-CLIENTE-BUSQUEDA-001].
+Los ficheros de producción modificados fueron tres:
 
-El esquema de la entidad [spec:entidad Client] no se modificó: es `existing_readonly` y queda fuera del alcance de esta spec. Los ficheros restantes del PR son informes de finalización y evidencias de tests.
+- **`api/src/services/ClientService.ts`** (+21 −3): incorpora la función `escapeRegex` y la lógica que, cuando `search` está presente, construye `new RegExp(escapeRegex(search), 'i')` sobre el campo `name` e inyecta ese filtro tanto en `find` como en `countDocuments` [informe:WI-API-CLIENTE-BUSQUEDA-001].
+- **`api/src/controllers/ClientController.ts`** (+202 −1): adapta el controlador para extraer y propagar `search` desde la query al servicio [informe:WI-API-CLIENTE-BUSQUEDA-001].
+- **`api/src/validators/client.validators.ts`** (+5 −0): añade la regla `.trim().isLength({ min: 2, max: 100 })` con mensaje explícito al validador `validateListClients` [informe:WI-API-CLIENTE-BUSQUEDA-001] [codigo:GET /api/clients].
+
+Los ficheros de test ampliados fueron dos:
+
+- **`api/src/__tests__/clients.integration.test.ts`** (+255 −0): tests de integración para los ocho ACs [informe:WI-API-CLIENTE-BUSQUEDA-001].
+- **`api/src/services/ClientService.test.ts`** (+172 −1): tests unitarios de `escapeRegex` y de `ClientService.list` con y sin `search` [informe:WI-API-CLIENTE-BUSQUEDA-001].
+
+El resto de los ficheros del PR corresponden a artefactos del proceso (informe de finalización, evidencias de test). La entidad [spec:entidad Client] no fue modificada: la spec la declara `existing_readonly`.
+
+---
 
 ## Cómo está construido
 
-El diagrama siguiente, derivado del grafo de conocimiento del repositorio, muestra la relación entre el endpoint, el modelo y los componentes que lo sirven:
+El diagrama siguiente, derivado del grafo de conocimiento del repositorio, muestra cómo se articula el endpoint en la capa de routing:
 
 ```mermaid
 flowchart LR
@@ -122,50 +141,71 @@ flowchart LR
   n11 -->|route_imports_middleware| n10
 ```
 
-El endpoint [ancla:endpoint GET /api/clients] está implementado por `api.routes.ts` [arista:GET /api/clients→route · api.routes.ts], que importa `ClientController.ts` [arista:route · api.routes.ts→controller · ClientController.ts] y los middlewares necesarios. La cadena de middlewares —sin cambios respecto al listado existente— es:
+El endpoint [arista:GET /api/clients→route · api.routes.ts] es implementado por `api.routes.ts` [arista:route · api.routes.ts→controller · ClientController.ts], que importa `ClientController.ts` y los middlewares necesarios. La cadena de middlewares para esta ruta, sin cambios respecto al listado previo [spec:endpoint GET /api/clients], es:
 
-1. `authenticate.middleware.ts` [arista:route · api.routes.ts→middleware · authenticate.middleware.ts] — valida el Bearer JWT. Nunca `auth.middleware.ts` [arista:route · api.routes.ts→middleware · auth.middleware.ts] (middleware legacy de token por query string).
-2. `attachAuthenticatedUser.middleware.ts` [arista:route · api.routes.ts→middleware · attachAuthenticatedUser.middleware.ts] — adjunta el usuario autenticado a `req.user`.
-3. `requireAdminForInactiveFilter.middleware.ts` [arista:route · api.routes.ts→middleware · requireAdminForInactiveFilter.middleware.ts] — rechaza con 403 a no administradores que piden `status=inactive`, antes de que actúe el validador.
-4. `validateListClients` (en `client.validators.ts`) — valida `page`, `limit`, `status` y el nuevo `search`.
-5. `ClientController.list` — delega en `ClientService.list`, que lee el modelo [arista:GET /api/clients→Client].
+```
+authenticate → attachAuthenticatedUser → requireAdminForInactiveFilter → validateListClients → ClientController.list
+```
 
-El grafo también refleja que `api.routes.ts` importa `requireAdmin.middleware.ts` [arista:route · api.routes.ts→middleware · requireAdmin.middleware.ts], aunque ese middleware sirve a otras rutas del mismo fichero de rutas, no a `GET /api/clients`.
+- `authenticate` [arista:route · api.routes.ts→middleware · authenticate.middleware.ts] verifica el Bearer JWT. La spec prohíbe usar `auth.middleware.ts` (legacy) [arista:route · api.routes.ts→middleware · auth.middleware.ts] en esta ruta.
+- `attachAuthenticatedUser` [arista:route · api.routes.ts→middleware · attachAuthenticatedUser.middleware.ts] materializa el usuario en `req.user`.
+- `requireAdminForInactiveFilter` [arista:route · api.routes.ts→middleware · requireAdminForInactiveFilter.middleware.ts] es la barrera de autorización para `status=inactive`; su posición anterior a la validación es la que garantiza [spec:business_rule RN-03].
+- `validateListClients` (en `client.validators.ts`) aplica el trim y la comprobación de longitud sobre `search` [spec:business_rule RN-02].
+- `ClientController.list` delega en `ClientService.list`, donde reside la lógica de construcción del filtro Mongo [informe:WI-API-CLIENTE-BUSQUEDA-001].
+
+El endpoint lee únicamente el modelo [arista:GET /api/clients→Client] [spec:entidad Client]; no escribe ningún dato.
+
+El grafo muestra que `api.routes.ts` también importa `requireAdmin.middleware.ts` [arista:route · api.routes.ts→middleware · requireAdmin.middleware.ts], aunque ese middleware no forma parte de la cadena de `GET /api/clients`; corresponde a otras rutas del mismo fichero de routing.
+
+---
 
 ## Reglas de negocio
 
-| ID | Enunciado | Mecanismo de implementación |
-|---|---|---|
-| [spec:business_rule RN-01] | El texto buscado es un literal; los metacaracteres de regex se escapan. `.*` no devuelve todos los clientes. La búsqueda distingue acentos: `Jose` no encuentra a `José`. | Función `escapeRegex` en `ClientService.ts`; el `RegExp` se construye con su resultado. |
-| [spec:business_rule RN-02] | `search` debe tener entre 2 y 100 caracteres tras `trim()`. Fuera de rango → 400. | `.trim().isLength({min:2, max:100})` en `validateListClients` (`client.validators.ts`). |
-| [spec:business_rule RN-03] | La búsqueda no abre los inactivos a no administradores. `requireAdminForInactiveFilter` precede al validador: `search=a&status=inactive` por un no admin → 403 (no 400). Para un admin sí actúa la validación: `search=a&status=inactive` → 400. | Orden fijo de middlewares en `api.routes.ts`. |
-| [spec:business_rule RN-04] | Solo se busca en `name`. El email sale ofuscado (`toPublicClient` → `obfuscateValue`); buscarlo lo desvelaría carácter a carácter. | El filtro Mongo aplica únicamente sobre el campo `name`. |
+**RN-01 — El texto se trata como literal** [spec:business_rule RN-01]
+
+Antes de construir el `RegExp`, `ClientService.ts` aplica `escapeRegex` sobre el valor de `search`. Esta función antepone `\` a cada carácter que tenga significado especial en una expresión regular (`. * + ? ^ $ { } ( ) | [ ] \`). El resultado es que el texto del usuario llega a Mongo siempre como patrón literal. La búsqueda distingue acentos porque la flag `i` de JavaScript no normaliza diacríticos; `«Jose»` y `«José»` son términos distintos.
+
+**RN-02 — Longitud mínima 2, máxima 100** [spec:business_rule RN-02]
+
+La validación se realiza en `validateListClients` con `.trim().isLength({ min: 2, max: 100 })`. El trim se aplica antes de medir: una cadena formada únicamente por espacios queda vacía tras el trim y cae por debajo del mínimo. La respuesta en todos los casos fuera de rango es [spec:error VALIDATION_ERROR] HTTP 400 con mensaje explícito.
+
+**RN-03 — La barrera 403 va antes que la validación** [spec:business_rule RN-03]
+
+`requireAdminForInactiveFilter` precede a `validateListClients` en la cadena. Un no administrador que envíe `status=inactive` recibirá [spec:error CLIENTS_FORBIDDEN_FILTER] HTTP 403 independientemente del valor de `search`. Un administrador, en cambio, sí llega al validador: `search=a&status=inactive` le devuelve HTTP 400.
+
+**RN-04 — Solo `name`, nunca `email`** [spec:business_rule RN-04]
+
+El filtro Mongo que construye `ClientService.list` opera exclusivamente sobre el campo `name`. El campo `email` pasa siempre por `toPublicClient` → `obfuscateValue` antes de salir en la respuesta, por lo que el usuario nunca puede sondear su valor a través del parámetro `search` [spec:acceptance_criteria AC-07].
+
+---
 
 ## Cómo verificarlo
 
-El informe de finalización de [wi:WI-API-CLIENTE-BUSQUEDA-001] declara 133 tests en verde en 6 suites [informe:WI-API-CLIENTE-BUSQUEDA-001]. La cobertura de los ficheros clave supera el umbral del 80%: `ClientService.ts` alcanza el 98,68 % de sentencias y el 96,07 % de ramas; `client.validators.ts`, el 96,66 % y el 89,47 % respectivamente [informe:WI-API-CLIENTE-BUSQUEDA-001].
+El informe de finalización [informe:WI-API-CLIENTE-BUSQUEDA-001] declara 8 de 8 criterios cubiertos, con 133 tests en verde en 6 suites.
 
-Cada criterio de aceptación tiene al menos un test de integración en `api/src/__tests__/clients.integration.test.ts` y un test unitario en `api/src/services/ClientService.test.ts` [informe:WI-API-CLIENTE-BUSQUEDA-001]:
+| Criterio | Cobertura declarada |
+|---|---|
+| AC-01 [spec:acceptance_criteria AC-01] | Test de integración `'AC-01 — returns active clients whose name contains the search term (case-insensitive)'` + test unitario en `ClientService.test.ts` |
+| AC-02 [spec:acceptance_criteria AC-02] | Test de integración `'AC-02/RN-01 — ".*" is treated as a literal, not a regex wildcard'` + test unitario equivalente |
+| AC-03 [spec:acceptance_criteria AC-03] | Tres tests de integración: `search=a` (1 char), `search=%20%20%20` (solo espacios) y `search` de 101 chars → HTTP 400 |
+| AC-04 [spec:acceptance_criteria AC-04] | Dos tests de integración: no-admin con `search=ana&status=inactive` y con `search=a&status=inactive` → HTTP 403 |
+| AC-05 [spec:acceptance_criteria AC-05] | Test de integración `'AC-05 — without search, returns full list with correct ids and total'` + test unitario |
+| AC-06 [spec:acceptance_criteria AC-06] | Test de integración `'AC-06 — no coincidences returns 200 with items [] and total 0'` + test unitario |
+| AC-07 [spec:acceptance_criteria AC-07] | Test de integración `'AC-07/RN-04 — search term found only in email does not return the client'` (cliente `name='Luis'`, `email='ana@example.com'`, `search=ana` → `total: 0`) + test unitario |
+| AC-08 [spec:acceptance_criteria AC-08] | Test de integración: 25 clientes con `'ana'` + 5 sin ella, `?search=ana&page=2&limit=10` → 10 items y `total=25` + test unitario |
 
-- **[spec:acceptance_criteria AC-01]** — `'AC-01 — returns active clients whose name contains the search term (case-insensitive)'` y `'AC-01 — finds by name case-insensitively'`. El `RegExp` usa la flag `'i'`.
-- **[spec:acceptance_criteria AC-02]** — `'AC-02/RN-01 — ".*" is treated as a literal, not a regex wildcard'`. Verifica que `escapeRegex` neutraliza los metacaracteres.
-- **[spec:acceptance_criteria AC-03]** — Tres tests: `search=a` (1 car.), `search=%20%20%20` (solo espacios, `trim` → vacío) y `search` de 101 caracteres, todos esperan 400 con `{status:'error', message:'search must be between 2 and 100 characters'}`.
-- **[spec:acceptance_criteria AC-04]** — Dos tests: no admin con `search=ana&status=inactive` y no admin con `search=a&status=inactive`, ambos esperan 403 `CLIENTS_FORBIDDEN_FILTER`.
-- **[spec:acceptance_criteria AC-05]** — `'AC-05 — without search, returns full list with correct ids and total'`. Sin `search`, el filtro no incluye el campo `name`.
-- **[spec:acceptance_criteria AC-06]** — `'AC-06 — no coincidences returns 200 with items [] and total 0'`. Respuesta 200, no error.
-- **[spec:acceptance_criteria AC-07]** — `'AC-07/RN-04 — search term found only in email does not return the client'`: cliente `name='Luis'`, `email='ana@example.com'`, `search=ana` → `total:0`.
-- **[spec:acceptance_criteria AC-08]** — 25 clientes con `'ana'` + 5 sin `'ana'`; `?search=ana&page=2&limit=10` → 10 items y `total=25`. `find` y `countDocuments` reciben el mismo objeto `filter`.
+Las suites ejecutadas fueron: `ClientService.test.ts`, `clients.integration.test.ts`, `client-count.integration.test.ts`, `favorites.integration.test.ts`, `FavoriteService.test.ts` y `obfuscate.test.ts` [informe:WI-API-CLIENTE-BUSQUEDA-001]. La cobertura de `ClientService.ts` alcanzó el 98,68 % de sentencias y 96,07 % de ramas; la de `client.validators.ts`, el 96,66 % de sentencias y 89,47 % de ramas, ambas por encima del umbral del 80 % [informe:WI-API-CLIENTE-BUSQUEDA-001].
 
-Las suites adicionales que pasaron —`client-count.integration.test.ts`, `favorites.integration.test.ts`, `FavoriteService.test.ts` y `obfuscate.test.ts`— verifican que el cambio no introdujo regresiones en funcionalidad adyacente [informe:WI-API-CLIENTE-BUSQUEDA-001].
+---
 
 ## Notas para el mantenedor
 
-**Rendimiento y escalabilidad.** Un `RegExp` sin ancla no aprovecha índices de campo convencionales: la consulta recorre la colección completa. Esto es aceptable al tamaño actual de `clients`. Para acotar el tiempo de respuesta, `find` y `countDocuments` llevan `maxTimeMS(5000)`; si Mongo supera ese límite, la conexión se libera y el cliente recibe el [spec:error INTERNAL_ERROR] genérico. Si la colección crece, la spec señala un índice de texto como salida, pero eso pertenece a una spec futura y está fuera del alcance de [wi:WI-API-CLIENTE-BUSQUEDA-001].
+**Rendimiento y límite de tiempo** [spec:endpoint GET /api/clients]: el filtro por `search` construye una expresión regular sin ancla de inicio o fin, lo que impide el uso de índices y obliga a un recorrido completo de la colección (`collection scan`). Esto es aceptable al tamaño actual de `clients`. Para proteger las conexiones frente a búsquedas lentas, `find` y `countDocuments` llevan `maxTimeMS(5000)`; si Mongo supera ese límite, la operación se cancela y el endpoint devuelve [spec:error INTERNAL_ERROR] HTTP 500. Si la colección crece significativamente, la salida prevista es un índice de texto en MongoDB, contemplada en una spec futura y fuera del alcance de este work item.
 
-**Distinción de acentos.** La flag `'i'` no normaliza acentos: `Jose` no encuentra a `José` [spec:business_rule RN-01]. Corregirlo requeriría una `collation` en Mongo o normalización previa del texto, y queda expresamente fuera de esta spec.
+**Observabilidad** [spec:endpoint GET /api/clients]: el backend no monta ningún logger de peticiones en `app.ts`, y este cambio no añade ninguno. El término `search` no se escribe en ningún log. Si en el futuro se incorpora un logger de peticiones, `search` debe tratarse como dato personal (puede contener un nombre) y omitirse del registro.
 
-**Observabilidad.** El backend no monta ningún logger en `app.ts` y este cambio no añade ninguno: el término `search` no se escribe en ningún registro. Si en el futuro se incorpora un logger de peticiones, `search` debe tratarse como dato personal —puede contener un nombre— y omitirse del registro.
+**Distinción de acentos** [spec:business_rule RN-01]: la búsqueda no normaliza diacríticos. `«Jose»` no encontrará a `«José»`. Resolverlo requeriría collation de MongoDB o normalización previa del texto, y ambos quedan fuera del alcance de esta spec.
 
-**Middleware `auth.middleware.ts`.** El grafo refleja que `api.routes.ts` importa `auth.middleware.ts` [arista:route · api.routes.ts→middleware · auth.middleware.ts]. Este middleware es legacy (token por query string) y no debe usarse en la ruta `GET /api/clients`; la spec lo prohíbe explícitamente [spec:endpoint GET /api/clients]. Si en una refactorización futura se elimina del fichero de rutas, hay que asegurarse de que ninguna otra ruta del mismo fichero dependa de él.
+**`auth.middleware.ts` no se usa aquí** [spec:endpoint GET /api/clients]: el grafo muestra que `api.routes.ts` importa `auth.middleware.ts` [arista:route · api.routes.ts→middleware · auth.middleware.ts], pero la spec prohíbe expresamente su uso en las rutas de clientes (es middleware legacy que acepta token por query string). El mantenedor no debe añadirlo a la cadena de `GET /api/clients`.
 
-**Hueco en la cronología de este work item.** La cronología no registra ninguna transición de estado de [estado:WI-API-CLIENTE-BUSQUEDA-002] posterior a «Asignado» (2026-10-01 14:34 UTC). Si el sistema de control plane requiere un estado explícito de cierre, este work item debe completarse formalmente una vez entregado el documento.
+**Estado actual de este documento**: [git:PR #21] está abierto y en revisión en la rama `docs/MEAN-API-CLIENTE-BUSQUEDA-001/WI-API-CLIENTE-BUSQUEDA-002` [estado:WI-API-CLIENTE-BUSQUEDA-002]. El backend asociado [wi:WI-API-CLIENTE-BUSQUEDA-001] ya está mergeado [estado:WI-API-CLIENTE-BUSQUEDA-001].
