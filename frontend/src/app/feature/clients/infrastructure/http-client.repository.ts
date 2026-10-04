@@ -1,4 +1,5 @@
 // [AI-GENERATED | WI: WI-CLI-FRONT-001 | spec: MEAN-CLI-FRONT-001 | contrato: MEAN-CLI-004]
+// [AI-GENERATED | WI: WI-UX-NOTA-CLIENTE-001 | spec: MEAN-UX-NOTA-CLIENTE-001]
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, catchError, map, throwError } from 'rxjs';
@@ -76,6 +77,15 @@ export class HttpClientRepository implements ClientRepositoryPort {
     return this.http.delete<Envoltorio<Client>>(`${this.base}/${id}`).pipe(
       map(() => undefined),
       catchError((e) => this.traducir(e, 'deactivate', id)),
+    );
+  }
+
+  updateNote(id: string, note: string | null): Observable<void> {
+    // `PATCH /api/clients/:id/note` — RN-01: sobrescribe la nota anterior, nunca la acumula.
+    // Pasar `null` elimina la nota. El cuerpo viaja siempre con la clave `note`.
+    return this.http.patch<Envoltorio<unknown>>(`${this.base}/${id}/note`, { note }).pipe(
+      map(() => undefined),
+      catchError((e) => this.traducir(e, undefined, id)),
     );
   }
 

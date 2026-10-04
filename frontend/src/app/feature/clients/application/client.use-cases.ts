@@ -1,4 +1,5 @@
 // [AI-GENERATED | WI: WI-CLI-FRONT-001 | spec: MEAN-CLI-FRONT-001 | contrato: MEAN-CLI-004]
+// [AI-GENERATED | WI: WI-UX-NOTA-CLIENTE-001 | spec: MEAN-UX-NOTA-CLIENTE-001]
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { CLIENT_REPOSITORY } from '../domain/ports/client-repository.port';
@@ -50,5 +51,17 @@ export class DeactivateClientUseCase {
   private readonly repo = inject(CLIENT_REPOSITORY);
   execute(id: string): Observable<void> {
     return this.repo.deactivate(id);
+  }
+}
+
+@Injectable()
+export class UpdateClientNoteUseCase {
+  private readonly repo = inject(CLIENT_REPOSITORY);
+  /**
+   * Reemplaza la nota interna del cliente (RN-01: solo existe una nota por cliente).
+   * Pasar `null` elimina la nota. La UI aplica debounce antes de llamar a execute().
+   */
+  execute(id: string, note: string | null): Observable<void> {
+    return this.repo.updateNote(id, note);
   }
 }

@@ -139,3 +139,72 @@ describe('HttpClientRepository — traduce el contrato MEAN-CLI-004', () => {
     expect(completado).toBe(true);
   });
 });
+
+// ── WI-UX-NOTA-CLIENTE-001: updateNote PATCH /api/clients/:id/note ──────────────────────────────
+
+describe('HttpClientRepository — updateNote (WI-UX-NOTA-CLIENTE-001)', () => {
+  let repo: HttpClientRepository;
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), HttpClientRepository],
+    });
+    repo = TestBed.inject(HttpClientRepository);
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  it('AC-01 · PATCH dos veces seguidas: la segunda nota reemplaza a la primera (RN-01)', () => {
+    // Primera llamada
+    let ok1 = false;
+    repo.updateNote('c1', 'Nota primera').subscribe({ complete: () => (ok1 = true) });
+    const req1 = http.expectOne((r) => r.url === '/api/clients/c1/note' && r.method === 'PATCH');
+    expect(req1.request.body).toEqual({ note: 'Nota primera' });
+    req1.flush({ status: 'success', data: {} });
+    expect(ok1).toBe(true);
+
+    // Segunda llamada — misma URL, nota distinta. El contrato SOBRESCRIBE, no acumula.
+    let ok2 = false;
+    repo.updateNote('c1', 'Nota segunda').subscribe({ complete: () => (ok2 = true) });
+    const req2 = http.expectOne((r) => r.url === '/api/clients/c1/note' && r.method === 'PATCH');
+    expect(req2.request.body).toEqual({ note: 'Nota segunda' });
+    req2.flush({ status: 'success', data: {} });
+    expect(ok2).toBe(true);
+  });
+
+  it('updateNote con nota null envía { note: null } para eliminar la nota', () => {
+    repo.updateNote('c2', null).subscribe();
+    const req = http.expectOne((r) => r.url === '/api/clients/c2/note' && r.method === 'PATCH');
+    expect(req.request.body).toEqual({ note: null });
+    req.flush({ status: 'success', data: {} });
+  });
+
+  it('updateNote usa PATCH sobre /api/clients/:id/note, no PUT ni POST', () => {
+    repo.updateNote('abc', 'texto').subscribe();
+    const req = http.expectOne('/api/clients/abc/note');
+    expect(req.request.method).toBe('PATCH');
+    req.flush({ status: 'success', data: {} });
+  });
+
+  it('updateNote 404 → ClientNotFoundError con el id correcto', () => {
+    let error: any;
+    repo.updateNote('noexiste', 'texto').subscribe({ error: (e) => (error = e) });
+    http
+      .expectOne('/api/clients/noexiste/note')
+      .flush({ status: 'error' }, { status: 404, statusText: 'Not Found' });
+    expect(error.kind).toBe('not_found');
+    expect(error.id).toBe('noexiste');
+  });
+
+  it('updateNote 5xx → ClientInfrastructureError reintentable', () => {
+    let error: any;
+    repo.updateNote('c3', 'texto').subscribe({ error: (e) => (error = e) });
+    http
+      .expectOne('/api/clients/c3/note')
+      .flush({}, { status: 500, statusText: 'Internal Server Error' });
+    expect(error.kind).toBe('infrastructure');
+    expect(error.retriable).toBe(true);
+  });
+});

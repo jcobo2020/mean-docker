@@ -1,3 +1,7 @@
+import { provideRouter } from '@angular/router';
+import { provideToastr } from 'ngx-toastr';
+import { provideHttpClient } from '@angular/common/http';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { LayoutComponent } from './layout.component';
@@ -8,6 +12,7 @@ describe('LayoutComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideToastr(), provideHttpClient(), provideNoopAnimations()],
       imports: [LayoutComponent]
     })
     .compileComponents();

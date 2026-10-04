@@ -102,6 +102,7 @@
             <th scope="col">Correo</th>
             <th scope="col">Teléfono</th>
             <th scope="col">Estado</th>
+            <th scope="col">Nota interna</th>
             <th scope="col">Favorito</th>
           </tr>
         </thead>
@@ -114,6 +115,33 @@
               <td>{{ c.email }}</td>
               <td>{{ c.phone ?? 'No informado' }}</td>
               <td>{{ c.status === 'active' ? 'Activo' : 'Inactivo' }}</td>
+              <!-- Nota interna (RN-01): una sola nota por cliente, sobrescribe la anterior.
+                   Debounce de 500ms: el PATCH no se dispara en cada tecla.
+                   Mientras el debounce espera o el PATCH está en vuelo, muestra el skeleton. -->
+              <td class="clients__nota-celda">
+                @if (estaNotaPendiente(c.id)) {
+                  <span
+                    class="clients__nota-skeleton"
+                    data-testid="nota-cargando"
+                    aria-busy="true"
+                    aria-label="Guardando nota…"
+                  ></span>
+                } @else {
+                  <input
+                    type="text"
+                    class="clients__nota-input"
+                    data-testid="nota-input"
+                    [attr.data-cliente-id]="c.id"
+                    [value]="c.internalNote ?? ''"
+                    [placeholder]="c.internalNote == null ? 'Sin nota' : ''"
+                    [attr.aria-label]="'Nota interna de ' + c.name"
+                    (input)="editarNota(c.id, $any($event.target).value)"
+                  />
+                  @if (c.internalNote == null) {
+                    <span class="clients__nota-vacia" data-testid="nota-sin-nota">Sin nota</span>
+                  }
+                }
+              </td>
               <td>
                 <button
                   type="button"

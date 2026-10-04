@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+import { createSpyObj } from '../../../../testing/spy-obj';
 // [AI-GENERATED | WI: WI-UX-CLIENTES-FAV-001 | spec: MEAN-UX-CLIENTES-FAV-001 | contrato: MEAN-API-CLIENTES-FAV-001]
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -13,11 +15,11 @@ import { clientsSessionInterceptor } from './session.interceptor';
 describe('clientsSessionInterceptor — AC-04: 401 expulsa, el resto pasa intacto', () => {
   let http: HttpClient;
   let mock: HttpTestingController;
-  let router: jasmine.SpyObj<Router>;
+  let router: Router;
 
   beforeEach(() => {
-    router = jasmine.createSpyObj<Router>('Router', ['navigate'], { url: '/clients?page=2' });
-    router.navigate.and.resolveTo(true);
+    router = createSpyObj<Router>('Router', ['navigate'], { url: '/clients?page=2' });
+    (router.navigate as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     TestBed.configureTestingModule({
       providers: [
@@ -41,9 +43,9 @@ describe('clientsSessionInterceptor — AC-04: 401 expulsa, el resto pasa intact
     http.get('/api/clients/favorites').subscribe({ error: (e) => (error = e) });
     mock.expectOne('/api/clients/favorites').flush(null, { status: 401, statusText: 'Unauthorized' });
 
-    expect(localStorage.getItem('currentUser')).toBeNull('el token caducado siguió en storage');
+    expect(localStorage.getItem('currentUser')).toBeNull();
     expect(router.navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/clients?page=2' } });
-    expect(error).toBeTruthy('el 401 debe seguir propagándose como error del observable');
+    expect(error).toBeTruthy();
   });
 
   it('403 NO expulsa — sesión válida, rol insuficiente, se queda en la pantalla', () => {
@@ -52,7 +54,7 @@ describe('clientsSessionInterceptor — AC-04: 401 expulsa, el resto pasa intact
     mock.expectOne('/api/clients').flush(null, { status: 403, statusText: 'Forbidden' });
 
     expect(router.navigate).not.toHaveBeenCalled();
-    expect(localStorage.getItem('currentUser')).not.toBeNull('un 403 borró la sesión sin motivo');
+    expect(localStorage.getItem('currentUser')).not.toBeNull();
     expect(error).toBeTruthy();
   });
 
@@ -61,7 +63,7 @@ describe('clientsSessionInterceptor — AC-04: 401 expulsa, el resto pasa intact
       let capturado: unknown;
       http.post(`/api/clients/${status}/favorite`, {}).subscribe({ error: (e) => (capturado = e) });
       mock.expectOne(`/api/clients/${status}/favorite`).flush({ message: 'x' }, { status, statusText: 'x' });
-      expect((capturado as { status: number }).status).toBe(status, `el ${status} se transformó en vez de pasar intacto`);
+      expect((capturado as { status: number }).status).toBe(status);
     }
     expect(router.navigate).not.toHaveBeenCalled();
   });

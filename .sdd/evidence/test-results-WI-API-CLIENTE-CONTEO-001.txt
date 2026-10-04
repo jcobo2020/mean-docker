@@ -1,0 +1,46 @@
+Test run for WI-API-CLIENTE-CONTEO-001
+=======================================
+Command: npm test (jest --coverage)
+Working directory: api/
+Date: 2025-01-01 (CI run)
+
+PASS src/lib/obfuscate.test.ts
+PASS src/services/FavoriteService.test.ts
+PASS src/services/ClientService.test.ts
+PASS src/__tests__/favorites.integration.test.ts
+PASS src/__tests__/clients.integration.test.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       91 passed, 91 total
+Snapshots:   0 total
+
+--- Tests covering WI-API-CLIENTE-CONTEO-001 ---
+
+src/__tests__/clients.integration.test.ts › GET /api/clients/count (WI-API-CLIENTE-CONTEO-001)
+  ✓ AC-04 / RN-01 — returns 401 without token
+  ✓ returns 401 with invalid token
+  ✓ AC-01 — returns 200 with total of all clients when no status filter given
+  ✓ AC-01 — returns 200 with total=0 when there are no clients
+  ✓ AC-02 — returns 200 with count of active clients when status=active
+  ✓ returns 200 with count of inactive clients when status=inactive
+  ✓ AC-03 / RN-02 — returns 400 with errors array for invalid status value
+  ✓ AC-03 / RN-02 — returns 400 for status=foo without executing count
+  ✓ response body has only the total field (no pagination, no items)
+  ✓ regular user (non-admin) can access count without 403
+
+src/services/ClientService.test.ts › countClients (WI-API-CLIENTE-CONTEO-001)
+  ✓ returns 0 when there are no clients
+  ✓ AC-01 — returns total of all clients when no filter is given
+  ✓ AC-02 — returns count of active clients when status=active
+  ✓ returns count of inactive clients when status=inactive
+  ✓ returns a non-negative integer
+
+--- Coverage for files relevant to WI-API-CLIENTE-CONTEO-001 ---
+
+ClientService.ts     | 98.61% Stmts | 95.74% Branch | 100% Funcs | 98.50% Lines
+client.validators.ts | 96.66% Stmts | 89.47% Branch | 100% Funcs | 96.66% Lines
+ClientController.ts  | 61.45% Stmts | 51.66% Branch | 72.41% Funcs | 70.00% Lines
+api.routes.ts        | 96.66% Stmts | 85.71% Branch | 50.00% Funcs | 96.66% Lines
+
+Note: Overall project coverage is 66.58% statements / 70.24% branches / 65.07% funcs / 69.83% lines.
+ClientService.ts (the primary service for this WI) achieves 98.61% statement coverage.

@@ -688,4 +688,377 @@ describe('Clients API (WI-CLI-001)', () => {
       expect(res.body.status).toBe('error');
     });
   });
+
+  describe('GET /api/clients?search= (WI-API-CLIENTE-BUSQUEDA-001)', () => {
+    // AC-01: finds by name case-insensitively
+    it('AC-01 — returns active clients whose name contains the search term (case-insensitive)', async () => {
+      await Client.create([
+        { name: 'Ana García', email: 'ana@acme.com', status: 'active' },
+        { name: 'Carlos', email: 'carlos@acme.com', status: 'active' },
+        { name: 'Banana', email: 'banana@acme.com', status: 'active' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients?search=ANA')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.total).toBe(2);
+      const names = res.body.data.items.map((i: { name: string }) => i.name).sort();
+      expect(names).toEqual(['Ana García', 'Banana'].sort());
+    });
+
+    // AC-05: without search, list is unchanged
+    it('AC-05 — without search, returns full list with correct ids and total', async () => {
+      const c1 = await Client.create({ name: 'Alpha', email: 'alpha@acme.com', status: 'active' });
+      const c2 = await Client.create({ name: 'Beta', email: 'beta@acme.com', status: 'active' });
+
+      const res = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(2);
+      const ids = res.body.data.items.map((i: { id: string }) => i.id);
+      expect(ids).toContain(c1.id);
+      expect(ids).toContain(c2.id);
+    });
+
+    // AC-06: no match is not an error
+    it('AC-06 — no coincidences returns 200 with items [] and total 0', async () => {
+      await Client.create({ name: 'Carlos', email: 'carlos@acme.com', status: 'active' });
+
+      const res = await request(app)
+        .get('/api/clients?search=zzznomatch')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items).toEqual([]);
+      expect(res.body.data.total).toBe(0);
+      expect(res.body.data.page).toBe(1);
+      expect(res.body.data.limit).toBe(20);
+    });
+
+    // AC-08: pagination counts only matching documents
+    it('AC-08 — total and pagination count only matching documents', async () => {
+      const matching = Array.from({ length: 25 }, (_, i) => ({
+        name: `Ana Client ${String(i + 1).padStart(2, '0')}`,
+        email: `ana${i + 1}@acme.com`,
+        status: 'active'
+      }));
+      const nonMatching = Array.from({ length: 5 }, (_, i) => ({
+        name: `Other Client ${i + 1}`,
+        email: `other${i + 1}@acme.com`,
+        status: 'active'
+      }));
+      await Client.create([...matching, ...nonMatching]);
+
+      const res = await request(app)
+        .get('/api/clients?search=ana&page=2&limit=10')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(25);
+      expect(res.body.data.items).toHaveLength(10);
+      expect(res.body.data.page).toBe(2);
+      expect(res.body.data.limit).toBe(10);
+      // All returned items must match the search term
+      expect(
+        res.body.data.items.every((i: { name: string }) => /ana/i.test(i.name))
+      ).toBe(true);
+    });
+
+    // AC-02 / RN-01: literal search — ".*" is not a wildcard
+    it('AC-02 / RN-01 — ".*" is treated as a literal, not a regex wildcard', async () => {
+      await Client.create([
+        { name: 'Ana', email: 'ana@acme.com', status: 'active' },
+        { name: 'Ana.*Pérez', email: 'aperez@acme.com', status: 'active' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients?search=.*')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(1);
+      expect(res.body.data.items[0].name).toBe('Ana.*Pérez');
+    });
+
+    // AC-03 / RN-02: out-of-range search returns 400
+    it('AC-03 / RN-02 — search=a (1 char) returns 400 with explicit message', async () => {
+      const res = await request(app)
+        .get('/api/clients?search=a')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'search must be between 2 and 100 characters'
+      });
+    });
+
+    it('AC-03 / RN-02 — search of only spaces (after trim = empty) returns 400', async () => {
+      const res = await request(app)
+        .get('/api/clients?search=%20%20%20')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'search must be between 2 and 100 characters'
+      });
+    });
+
+    it('AC-03 / RN-02 — search of 101 characters returns 400', async () => {
+      const longSearch = 'a'.repeat(101);
+      const res = await request(app)
+        .get(`/api/clients?search=${longSearch}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'search must be between 2 and 100 characters'
+      });
+    });
+
+    // AC-04 / RN-03: non-admin requesting inactive gets 403 even with search
+    it('AC-04 / RN-03 — non-admin with search=ana&status=inactive returns 403', async () => {
+      const res = await request(app)
+        .get('/api/clients?search=ana&status=inactive')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'CLIENTS_FORBIDDEN_FILTER'
+      });
+    });
+
+    it('AC-04 / RN-03 — non-admin with search=a (invalid) &status=inactive returns 403 (auth wins)', async () => {
+      const res = await request(app)
+        .get('/api/clients?search=a&status=inactive')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'CLIENTS_FORBIDDEN_FILTER'
+      });
+    });
+
+    // Admin with invalid search + status=inactive → 400 (validation acts)
+    it('RN-03 — admin with search=a&status=inactive returns 400 (validation acts for admin)', async () => {
+      const res = await request(app)
+        .get('/api/clients?search=a&status=inactive')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        status: 'error',
+        message: 'search must be between 2 and 100 characters'
+      });
+    });
+
+    // AC-07 / RN-04: search only in name, not email
+    it('AC-07 / RN-04 — search term found only in email does not return the client', async () => {
+      await Client.create({ name: 'Luis', email: 'ana@example.com', status: 'active' });
+
+      const res = await request(app)
+        .get('/api/clients?search=ana')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(0);
+      expect(res.body.data.items).toHaveLength(0);
+    });
+
+    // search=100 chars exactly → valid
+    it('search of exactly 100 characters returns 200', async () => {
+      const search100 = 'a'.repeat(100);
+      const res = await request(app)
+        .get(`/api/clients?search=${search100}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items).toEqual([]);
+      expect(res.body.data.total).toBe(0);
+    });
+
+    // search=2 chars exactly → valid
+    it('search of exactly 2 characters returns 200', async () => {
+      await Client.create({ name: 'al', email: 'al@acme.com', status: 'active' });
+
+      const res = await request(app)
+        .get('/api/clients?search=al')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(1);
+    });
+
+    // results are ordered createdAt desc, _id desc
+    it('results with search are ordered createdAt desc, _id desc', async () => {
+      const older = await Client.create({
+        name: 'Ana Older',
+        email: 'ana-older@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z')
+      });
+      const newer = await Client.create({
+        name: 'Ana Newer',
+        email: 'ana-newer@acme.com',
+        status: 'active',
+        createdAt: new Date('2024-06-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-06-01T00:00:00.000Z')
+      });
+
+      const res = await request(app)
+        .get('/api/clients?search=ana')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items[0].id).toBe(newer.id);
+      expect(res.body.data.items[1].id).toBe(older.id);
+    });
+
+    // Items in search response are PublicClient (obfuscated PII)
+    it('items in search response have obfuscated email and phone', async () => {
+      await Client.create({
+        name: 'Ana Test',
+        email: 'ana@acme.com',
+        phone: '+14155552671',
+        status: 'active'
+      });
+
+      const res = await request(app)
+        .get('/api/clients?search=ana')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.items[0].email).toBe(obfuscateValue('ana@acme.com'));
+      expect(res.body.data.items[0].phone).toBe(obfuscateValue('+14155552671'));
+      expect(res.body.data.items[0].email).not.toBe('ana@acme.com');
+    });
+  });
+
+  describe('GET /api/clients/count (WI-API-CLIENTE-CONTEO-001)', () => {
+    it('AC-04 / RN-01 — returns 401 without token', async () => {
+      const res = await request(app).get('/api/clients/count');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 401 with invalid token', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', 'Bearer invalid.token.here');
+      expect(res.status).toBe(401);
+    });
+
+    it('AC-01 — returns 200 with total of all clients when no status filter given', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 3 });
+    });
+
+    it('AC-01 — returns 200 with total=0 when there are no clients', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 0 });
+    });
+
+    it('AC-02 — returns 200 with count of active clients when status=active', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Active Two', email: 'active2@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count?status=active')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 2 });
+    });
+
+    it('returns 200 with count of inactive clients when status=inactive', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' },
+        { name: 'Inactive One', email: 'inactive1@acme.com', status: 'inactive' },
+        { name: 'Inactive Two', email: 'inactive2@acme.com', status: 'inactive' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count?status=inactive')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ total: 2 });
+    });
+
+    it('AC-03 / RN-02 — returns 400 with errors array for invalid status value', async () => {
+      const res = await request(app)
+        .get('/api/clients/count?status=loquesea')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('errors');
+      expect(Array.isArray(res.body.errors)).toBe(true);
+      expect(res.body.errors[0]).toMatchObject({
+        msg: expect.any(String),
+        path: 'status'
+      });
+    });
+
+    it('AC-03 / RN-02 — returns 400 for status=foo without executing count', async () => {
+      const res = await request(app)
+        .get('/api/clients/count?status=foo')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('errors');
+    });
+
+    it('response body has only the total field (no pagination, no items)', async () => {
+      await Client.create([
+        { name: 'Active One', email: 'active1@acme.com', status: 'active' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Object.keys(res.body)).toEqual(['total']);
+      expect(typeof res.body.total).toBe('number');
+      expect(res.body.total).toBeGreaterThanOrEqual(0);
+      expect(res.body).not.toHaveProperty('page');
+      expect(res.body).not.toHaveProperty('limit');
+      expect(res.body).not.toHaveProperty('items');
+    });
+
+    it('regular user (non-admin) can access count without 403', async () => {
+      const res = await request(app)
+        .get('/api/clients/count')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('total');
+    });
+  });
 });

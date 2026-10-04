@@ -1,10 +1,11 @@
 // [AI-GENERATED | WI: WI-CLI-FRONT-001 | spec: MEAN-CLI-FRONT-001 | contrato: MEAN-CLI-004]
 // [AI-GENERATED | WI: WI-API-CLIENTES-FAV-001 | spec: MEAN-UX-CLIENTES-FAV-001 | contrato: MEAN-API-CLIENTES-FAV-001]
+// [AI-GENERATED | WI: WI-UX-NOTA-CLIENTE-001 | spec: MEAN-UX-NOTA-CLIENTE-001]
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, debounceTime, switchMap, takeUntil } from 'rxjs/operators';
 import {
   PAGINA_POR_DEFECTO,
   TAMANOS_DE_PAGINA,
@@ -14,7 +15,7 @@ import {
   type ClientSummary,
 } from '../../domain/models/client.model';
 import { esErrorDeCliente, type AnyClientError } from '../../domain/errors/client.errors';
-import { ListClientsUseCase } from '../../application/client.use-cases';
+import { ListClientsUseCase, UpdateClientNoteUseCase } from '../../application/client.use-cases';
 import {
   ListFavoriteClientsUseCase,
   MarkFavoriteUseCase,
@@ -31,13 +32,24 @@ type EstadoDeVista = 'cargando' | 'con-datos' | 'vacio' | 'error';
   templateUrl: './client-list.component.html',
   styleUrl: './client-list.component.css',
 })
-export class ClientListComponent {
+export class ClientListComponent implements OnDestroy {
   private readonly listar = inject(ListClientsUseCase);
   private readonly marcar = inject(MarkFavoriteUseCase);
   private readonly desmarcar = inject(UnmarkFavoriteUseCase);
   private readonly listarFavoritos = inject(ListFavoriteClientsUseCase);
+  private readonly actualizarNota = inject(UpdateClientNoteUseCase);
   private readonly router = inject(Router);
   private readonly ruta = inject(ActivatedRoute);
+
+  /**
+   * Canal de debounce por cliente: cada entrada del mapa es un Subject<string|null> para ese id.
+   * Cuando el usuario escribe, se emite sobre el Subject del cliente — el debounce de 500ms
+   * espera a que deje de escribir antes de hacer el PATCH. Si una segunda edición llega antes de
+   * que responda la primera, `switchMap` cancela la llamada pendiente y solo se envía la última
+   * versión (RN-01).
+   */
+  private readonly notaSubjects = new Map<string, Subject<string | null>>();
+  private readonly destroy$ = new Subject<void>();
 
   readonly tamanos = TAMANOS_DE_PAGINA;
 
@@ -63,6 +75,12 @@ export class ClientListComponent {
   readonly favoritos = signal<ReadonlySet<string>>(new Set());
   /** Evita doble clic mientras el toggle de una fila está en vuelo (RN-01, diseño). */
   readonly favoritosPendientes = signal<ReadonlySet<string>>(new Set());
+
+  /**
+   * Ids de clientes cuya nota está siendo guardada (debounce en vuelo o PATCH en curso).
+   * Mientras un id está aquí, el campo de nota entra en estado "Cargando" (skeleton).
+   */
+  readonly notasPendientes = signal<ReadonlySet<string>>(new Set());
 
   /**
    * Distingue los DOS vacíos, porque no son la misma situación: sin filtros es «aún no hay nada» y
@@ -172,6 +190,55 @@ export class ClientListComponent {
   }
 
   // ── Acciones de la vista ──────────────────────────────────────────────────
+
+  /**
+   * Llamado desde el template en cada `input` del campo de nota.
+   * Aplica debounce de 500ms antes de disparar el PATCH (§4, performance).
+   * Mientras el debounce está activo o el PATCH está en vuelo, la fila entra en "Cargando".
+   */
+  editarNota(clienteId: string, valor: string): void {
+    // Normaliza: cadena vacía equivale a "sin nota" (null).
+    const nota: string | null = valor.trim() === '' ? null : valor.trim();
+
+    if (!this.notaSubjects.has(clienteId)) {
+      const subject = new Subject<string | null>();
+      this.notaSubjects.set(clienteId, subject);
+
+      subject.pipe(
+        // debounceTime: espera 500ms de silencio antes de disparar el PATCH.
+        // Si llega una nueva edición antes, cancela el temporizador y reinicia.
+        debounceTime(500),
+        // switchMap cancela la llamada anterior si llega una nueva edición antes de respuesta.
+        switchMap((n) => {
+          return this.actualizarNota.execute(clienteId, n).pipe(
+            catchError(() => {
+              this.aviso.set('No se pudo guardar la nota. Intenta de nuevo.');
+              return of(undefined);
+            }),
+          );
+        }),
+        takeUntil(this.destroy$),
+      ).subscribe(() => {
+        this.marcarNotaPendiente(clienteId, false);
+      });
+    }
+
+    // Marca pendiente ANTES de emitir (el debounce puede tardar hasta 500ms, pero
+    // la fila ya debe mostrarse como "cargando" desde el primer keystroke).
+    this.marcarNotaPendiente(clienteId, true);
+    this.notaSubjects.get(clienteId)!.next(nota);
+  }
+
+  estaNotaPendiente(clienteId: string): boolean {
+    return this.notasPendientes().has(clienteId);
+  }
+
+  private marcarNotaPendiente(clienteId: string, pendiente: boolean): void {
+    const actual = new Set(this.notasPendientes());
+    if (pendiente) actual.add(clienteId);
+    else actual.delete(clienteId);
+    this.notasPendientes.set(actual);
+  }
 
   irAPagina(n: number): void {
     if (n < 1 || n > this.totalPaginas()) return;
@@ -289,5 +356,16 @@ export class ClientListComponent {
   private tamanoValido(v: string | null): number {
     const n = Number(v);
     return (TAMANOS_DE_PAGINA as readonly number[]).includes(n) ? n : TAMANO_POR_DEFECTO;
+  }
+
+  ngOnDestroy(): void {
+    // Completa todos los subjects de nota y el destroy$ para que takeUntil limpie
+    // las suscripciones de debounce al destruir el componente.
+    this.destroy$.next();
+    this.destroy$.complete();
+    for (const subject of this.notaSubjects.values()) {
+      subject.complete();
+    }
+    this.notaSubjects.clear();
   }
 }
