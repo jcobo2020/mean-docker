@@ -38,6 +38,18 @@ export class ClientNotFoundError extends Error {
   }
 }
 
+export class ClientNoteTooLongError extends Error {
+  constructor(message = 'CLIENT_NOTE_TOO_LONG') {
+    super(message);
+    this.name = 'ClientNoteTooLongError';
+  }
+}
+
+export interface UpdateClientNoteInput {
+  id: string;
+  internalNote: string | null;
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -167,6 +179,25 @@ export class ClientService {
     }
 
     client.status = 'active';
+    await client.save();
+    return client;
+  }
+
+  async updateNote(input: UpdateClientNoteInput): Promise<IClient> {
+    const MAX_NOTE_LENGTH = 280;
+
+    const note = input.internalNote === '' ? null : input.internalNote;
+
+    if (note !== null && note !== undefined && note.length > MAX_NOTE_LENGTH) {
+      throw new ClientNoteTooLongError();
+    }
+
+    const client = await Client.findById(input.id);
+    if (!client) {
+      throw new ClientNotFoundError();
+    }
+
+    client.internalNote = note ?? null;
     await client.save();
     return client;
   }

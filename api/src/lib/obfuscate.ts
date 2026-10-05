@@ -28,6 +28,7 @@ export interface PublicClient {
   email: unknown;
   phone?: unknown;
   status: string;
+  internalNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,7 @@ export function toPublicClient(doc: {
     email: string;
     phone?: string;
     status: string;
+    internalNote?: string | null;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -53,6 +55,7 @@ export function toPublicClient(doc: {
     name: plain.name,
     email: obfuscateValue(plain.email),
     status: plain.status,
+    internalNote: plain.internalNote ?? null,
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };

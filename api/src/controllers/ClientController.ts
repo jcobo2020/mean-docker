@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import ClientService, {
   ClientNotFoundError,
+  ClientNoteTooLongError,
   DuplicateEmailError
 } from '../services/ClientService';
 import { ClientStatus } from '../models/client';
@@ -337,6 +338,71 @@ class ClientController {
           status: 'error',
           message: error.message
         });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/clients/{id}/note:
+   *   patch:
+   *     summary: Save or clear the internal note of a client
+   *     tags: [Clients]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: MongoDB ObjectId of the client
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               internalNote:
+   *                 type: string
+   *                 nullable: true
+   *                 maxLength: 280
+   *                 description: Internal note (max 280 chars). null or "" clears the existing note.
+   *     responses:
+   *       200:
+   *         description: Client with updated internalNote (same serializer as GET /api/clients/:id)
+   *       400:
+   *         description: internalNote exceeds 280 characters (CLIENT_NOTE_TOO_LONG) or :id is not a valid ObjectId
+   *       401:
+   *         description: Missing or invalid token
+   *       404:
+   *         description: Client not found
+   */
+  async updateNote(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { internalNote } = req.body;
+      const note: string | null = internalNote === undefined ? null : internalNote;
+      const client = await ClientService.updateNote({ id: req.params.id, internalNote: note });
+      res.status(200).json({
+        status: 'success',
+        message: 'Client note updated successfully',
+        data: toPublicClient(client)
+      });
+    } catch (error) {
+      if (error instanceof ClientNoteTooLongError) {
+        res.status(400).json({
+          errors: [{ field: 'internalNote', message: error.message }]
+        });
+        return;
+      }
+      if (error instanceof ClientNotFoundError) {
+        res.status(404).json({
+          status: 'error',
+          message: error.message
+        });
+        return;
       }
       next(error);
     }
