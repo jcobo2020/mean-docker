@@ -60,12 +60,26 @@ describe('toPublicClient', () => {
       email: obfuscateValue('admin@acme.com'),
       phone: obfuscateValue('+14155552671'),
       status: 'active',
+      internalNote: null,
       createdAt: new Date('2024-01-01T00:00:00.000Z'),
       updatedAt: new Date('2024-01-02T00:00:00.000Z')
     });
     expect(result).not.toHaveProperty('__v');
     expect(result).not.toHaveProperty('secretInternal');
     expect(result).not.toHaveProperty('_id');
+  });
+
+  it('returns internalNote when present in the document', () => {
+    const result = toPublicClient(buildDoc({ internalNote: 'VIP customer' }) as never);
+    expect(result.internalNote).toBe('VIP customer');
+  });
+
+  it('returns internalNote as null when document has no internalNote', () => {
+    const doc = buildDoc();
+    const plain = doc.toObject();
+    delete (plain as Record<string, unknown>).internalNote;
+    const result = toPublicClient({ toObject: () => plain } as never);
+    expect(result.internalNote).toBeNull();
   });
 
   it('omits phone when absent', () => {

@@ -1,0 +1,62 @@
+Test run: WI-API-NOTA-CLIENTE-001
+Date: 2026-10-05
+Command: npm test (jest --coverage --coverageReporters=text --coverageReporters=json-summary)
+Working directory: api/
+
+Test Suites: 6 passed, 6 total
+Tests:       155 passed, 155 total
+Snapshots:   0 total
+Time:        ~7.3 s
+
+Individual suite results:
+  PASS src/services/ClientService.test.ts
+  PASS src/__tests__/clients.integration.test.ts
+  PASS src/__tests__/client-count.integration.test.ts
+  PASS src/__tests__/favorites.integration.test.ts
+  PASS src/services/FavoriteService.test.ts
+  PASS src/lib/obfuscate.test.ts
+
+Coverage summary (all files instrumented by Jest):
+----------------------------------------------|---------|----------|---------|---------|
+File                                          | % Stmts | % Branch | % Funcs | % Lines |
+----------------------------------------------|---------|----------|---------|---------|
+All files                                     |   67.98 |    71.61 |   66.51 |   71.22 |
+ src/controllers/ClientController.ts          |   63.63 |    51.51 |   74.19 |   71.27 |
+ src/lib/obfuscate.ts                         |     100 |      100 |     100 |     100 |
+ src/models/client.ts                         |    75.6 |    70.27 |   66.66 |      80 |
+ src/routes/api.routes.ts                     |   96.77 |    85.71 |      50 |   96.77 |
+ src/services/ClientService.ts                |   98.88 |    96.92 |     100 |   98.82 |
+ src/validators/client.validators.ts          |   95.55 |    88.88 |     100 |   95.55 |
+----------------------------------------------|---------|----------|---------|---------|
+
+Files principally added/modified by WI-API-NOTA-CLIENTE-001:
+  src/models/client.ts:             internalNote field added to IClient + ClientSchema
+  src/services/ClientService.ts:    updateNote() + UpdateClientNoteInput + ClientNoteTooLongError added
+  src/controllers/ClientController.ts: updateNote() method + Swagger doc added
+  src/lib/obfuscate.ts:             internalNote added to PublicClient + toPublicClient()
+  src/validators/client.validators.ts: validateUpdateClientNote added
+  src/routes/api.routes.ts:         PATCH /api/clients/:id/note route registered
+
+Key tests for PATCH /api/clients/:id/note (clients.integration.test.ts):
+  AC-API-01: 'AC-API-01 — saves a note and returns 200 with the full client including internalNote' - PASS
+  AC-API-01: 'AC-API-01 — saves exactly 280 chars and returns 200' - PASS
+  AC-API-02: 'AC-API-02 — null clears the note and returns 200' - PASS
+  AC-API-02: 'AC-API-02 — empty string clears the note and returns 200' - PASS
+  AC-API-03: 'AC-API-03 — returns 400 with CLIENT_NOTE_TOO_LONG when note exceeds 280 chars' - PASS
+  AC-API-04: 'AC-API-04 — returns 400 for invalid ObjectId' - PASS
+  AC-API-04: 'AC-API-04 — returns 404 when client does not exist' - PASS
+  AC-API-05: 'AC-API-05 — returns 401 when no token is provided' - PASS
+  AC-API-05: 'AC-API-05 — returns 401 for invalid token' - PASS
+  AC-API-06: 'AC-API-06 — overwrites existing note and repeated identical request gives same result' - PASS
+  AC-API-07: 'AC-API-07 — GET /api/clients list includes internalNote for clients with a note' - PASS
+  AC-API-07: 'AC-API-07 — GET /api/clients/:id includes internalNote' - PASS
+  AC-API-07: 'AC-API-07 — GET /api/clients/:id returns null internalNote for client without note' - PASS
+
+Unit tests (ClientService.test.ts - updateNote describe block):
+  AC-API-01: 'AC-API-01 — saves a note and returns the updated client' - PASS
+  AC-API-02: 'AC-API-02 — null clears the note' - PASS
+  AC-API-02: 'AC-API-02 — empty string clears the note (stored as null)' - PASS
+  AC-API-03: 'AC-API-03 — throws ClientNoteTooLongError when note exceeds 280 chars' - PASS
+  AC-API-03: 'AC-API-03 — exactly 280 chars is accepted' - PASS
+  AC-API-04: 'AC-API-04 — throws ClientNotFoundError when client does not exist' - PASS
+  AC-API-06: 'AC-API-06 — overwrites an existing note (only one note per client)' - PASS
