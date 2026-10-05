@@ -82,8 +82,8 @@ export class HttpClientRepository implements ClientRepositoryPort {
 
   updateNote(id: string, note: string | null): Observable<void> {
     // `PATCH /api/clients/:id/note` — RN-01: sobrescribe la nota anterior, nunca la acumula.
-    // Pasar `null` elimina la nota. El cuerpo viaja siempre con la clave `note`.
-    return this.http.patch<Envoltorio<unknown>>(`${this.base}/${id}/note`, { note }).pipe(
+    // Pasar `null` elimina la nota. El cuerpo viaja con la clave `internalNote` (MEAN-API-NOTA-CLIENTE-001).
+    return this.http.patch<Envoltorio<unknown>>(`${this.base}/${id}/note`, { internalNote: note }).pipe(
       map(() => undefined),
       catchError((e) => this.traducir(e, undefined, id)),
     );
