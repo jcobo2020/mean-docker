@@ -7,6 +7,7 @@ export interface IClient extends Document {
   email: string;
   phone?: string;
   status: ClientStatus;
+  internalNote?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +32,12 @@ const ClientSchema: Schema = new Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active'
+    },
+    internalNote: {
+      type: String,
+      required: false,
+      default: null,
+      maxlength: 280
     }
   },
   {

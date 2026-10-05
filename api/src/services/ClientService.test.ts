@@ -326,6 +326,118 @@ describe('ClientService', () => {
       expect(result.items).toHaveLength(2);
     });
   });
+
+  describe('updateNote (WI-API-NOTA-CLIENTE-001)', () => {
+    it('AC-API-01 — saves a note and returns the updated client', async () => {
+      const created = await Client.create({
+        name: 'Note Client',
+        email: 'note@example.com',
+        status: 'active'
+      });
+
+      const result = await ClientService.updateNote({
+        id: created.id,
+        internalNote: 'Important VIP'
+      });
+
+      expect(result.internalNote).toBe('Important VIP');
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBe('Important VIP');
+    });
+
+    it('AC-API-02 — null clears the note', async () => {
+      const created = await Client.create({
+        name: 'Has Note',
+        email: 'hasnote@example.com',
+        status: 'active',
+        internalNote: 'Old note'
+      });
+
+      const result = await ClientService.updateNote({ id: created.id, internalNote: null });
+
+      expect(result.internalNote).toBeNull();
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBeNull();
+    });
+
+    it('AC-API-02 — empty string clears the note (stored as null)', async () => {
+      const created = await Client.create({
+        name: 'Empty Note',
+        email: 'emptynote@example.com',
+        status: 'active',
+        internalNote: 'Old note'
+      });
+
+      const result = await ClientService.updateNote({ id: created.id, internalNote: '' });
+
+      expect(result.internalNote).toBeNull();
+    });
+
+    it('AC-API-03 — throws ClientNoteTooLongError when note exceeds 280 chars', async () => {
+      const created = await Client.create({
+        name: 'Long Note',
+        email: 'longnote@example.com',
+        status: 'active'
+      });
+
+      const longNote = 'a'.repeat(281);
+
+      await expect(
+        ClientService.updateNote({ id: created.id, internalNote: longNote })
+      ).rejects.toMatchObject({ name: 'ClientNoteTooLongError' });
+
+      // Note was NOT persisted
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBeNull();
+    });
+
+    it('AC-API-03 — exactly 280 chars is accepted', async () => {
+      const created = await Client.create({
+        name: 'Max Note',
+        email: 'maxnote@example.com',
+        status: 'active'
+      });
+
+      const maxNote = 'b'.repeat(280);
+      const result = await ClientService.updateNote({ id: created.id, internalNote: maxNote });
+
+      expect(result.internalNote).toBe(maxNote);
+    });
+
+    it('AC-API-04 — throws ClientNotFoundError when client does not exist', async () => {
+      const nonExistentId = new mongoose.Types.ObjectId().toString();
+
+      await expect(
+        ClientService.updateNote({ id: nonExistentId, internalNote: 'text' })
+      ).rejects.toMatchObject({ name: 'ClientNotFoundError' });
+    });
+
+    it('AC-API-06 — overwrites an existing note (only one note per client)', async () => {
+      const created = await Client.create({
+        name: 'Overwrite Note',
+        email: 'overwrite@example.com',
+        status: 'active',
+        internalNote: 'First note'
+      });
+
+      const result1 = await ClientService.updateNote({
+        id: created.id,
+        internalNote: 'Updated note'
+      });
+      expect(result1.internalNote).toBe('Updated note');
+
+      const result2 = await ClientService.updateNote({
+        id: created.id,
+        internalNote: 'Updated note'
+      });
+      expect(result2.internalNote).toBe('Updated note');
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBe('Updated note');
+    });
+  });
 });
 
 // escapeRegex is a pure function — no MongoDB needed
@@ -383,3 +495,5 @@ describe('escapeRegex (RN-01)', () => {
     expect(escapeRegex('[test]')).toBe('\\[test\\]');
   });
 });
+
+

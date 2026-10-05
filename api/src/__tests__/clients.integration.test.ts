@@ -1061,4 +1061,239 @@ describe('Clients API (WI-CLI-001)', () => {
       expect(res.body).toHaveProperty('total');
     });
   });
+
+  describe('PATCH /api/clients/:id/note (WI-API-NOTA-CLIENTE-001)', () => {
+    it('AC-API-01 — saves a note and returns 200 with the full client including internalNote', async () => {
+      const created = await Client.create({
+        name: 'Note Client',
+        email: 'note@acme.com',
+        phone: '+14155552671',
+        status: 'active'
+      });
+
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: 'Very important client' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('success');
+      expect(res.body.data).toMatchObject({
+        id: created.id,
+        name: 'Note Client',
+        email: obfuscateValue('note@acme.com'),
+        phone: obfuscateValue('+14155552671'),
+        status: 'active',
+        internalNote: 'Very important client',
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String)
+      });
+      expect(res.body.data).not.toHaveProperty('_id');
+      expect(res.body.data).not.toHaveProperty('__v');
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBe('Very important client');
+    });
+
+    it('AC-API-01 — saves exactly 280 chars and returns 200', async () => {
+      const created = await Client.create({
+        name: 'Max Note Client',
+        email: 'maxnote@acme.com',
+        status: 'active'
+      });
+
+      const maxNote = 'x'.repeat(280);
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: maxNote });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.internalNote).toBe(maxNote);
+    });
+
+    it('AC-API-02 — null clears the note and returns 200', async () => {
+      const created = await Client.create({
+        name: 'Clear Note Client',
+        email: 'clearnote@acme.com',
+        status: 'active',
+        internalNote: 'Old note'
+      });
+
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: null });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.internalNote).toBeNull();
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBeNull();
+    });
+
+    it('AC-API-02 — empty string clears the note and returns 200', async () => {
+      const created = await Client.create({
+        name: 'Empty Note Client',
+        email: 'emptynote@acme.com',
+        status: 'active',
+        internalNote: 'Existing note'
+      });
+
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: '' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.internalNote).toBeNull();
+    });
+
+    it('AC-API-03 — returns 400 with CLIENT_NOTE_TOO_LONG when note exceeds 280 chars', async () => {
+      const created = await Client.create({
+        name: 'Long Note Client',
+        email: 'longnote@acme.com',
+        status: 'active'
+      });
+
+      const longNote = 'a'.repeat(281);
+      const res = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: longNote });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty('errors');
+      expect(Array.isArray(res.body.errors)).toBe(true);
+      expect(res.body.errors[0]).toMatchObject({
+        field: 'internalNote',
+        message: 'CLIENT_NOTE_TOO_LONG'
+      });
+
+      // Nothing was persisted
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBeNull();
+    });
+
+    it('AC-API-04 — returns 400 for invalid ObjectId', async () => {
+      const res = await request(app)
+        .patch('/api/clients/not-an-objectid/note')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: 'Some note' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('AC-API-04 — returns 404 when client does not exist', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .patch(`/api/clients/${id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: 'Some note' });
+
+      expect(res.status).toBe(404);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('AC-API-05 — returns 401 when no token is provided', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .patch(`/api/clients/${id}/note`)
+        .send({ internalNote: 'Some note' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('AC-API-05 — returns 401 for invalid token', async () => {
+      const id = new mongoose.Types.ObjectId().toString();
+      const res = await request(app)
+        .patch(`/api/clients/${id}/note`)
+        .set('Authorization', 'Bearer invalid.token.here')
+        .send({ internalNote: 'Some note' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.status).toBe('error');
+    });
+
+    it('AC-API-06 — overwrites existing note and repeated identical request gives same result', async () => {
+      const created = await Client.create({
+        name: 'Overwrite Client',
+        email: 'overwrite@acme.com',
+        status: 'active',
+        internalNote: 'First note'
+      });
+
+      const res1 = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: 'Updated note' });
+
+      expect(res1.status).toBe(200);
+      expect(res1.body.data.internalNote).toBe('Updated note');
+
+      const res2 = await request(app)
+        .patch(`/api/clients/${created.id}/note`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ internalNote: 'Updated note' });
+
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.internalNote).toBe('Updated note');
+
+      const row = await Client.findById(created.id);
+      expect(row!.internalNote).toBe('Updated note');
+    });
+
+    it('AC-API-07 — GET /api/clients list includes internalNote for clients with a note', async () => {
+      await Client.create([
+        { name: 'With Note', email: 'withnote@acme.com', status: 'active', internalNote: 'VIP' },
+        { name: 'Without Note', email: 'withoutnote@acme.com', status: 'active' }
+      ]);
+
+      const res = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      const withNote = res.body.data.items.find(
+        (item: { name: string }) => item.name === 'With Note'
+      );
+      const withoutNote = res.body.data.items.find(
+        (item: { name: string }) => item.name === 'Without Note'
+      );
+      expect(withNote.internalNote).toBe('VIP');
+      expect(withoutNote.internalNote).toBeNull();
+    });
+
+    it('AC-API-07 — GET /api/clients/:id includes internalNote', async () => {
+      const created = await Client.create({
+        name: 'Detail Note',
+        email: 'detailnote@acme.com',
+        status: 'active',
+        internalNote: 'Detail VIP note'
+      });
+
+      const res = await request(app)
+        .get(`/api/clients/${created.id}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.internalNote).toBe('Detail VIP note');
+    });
+
+    it('AC-API-07 — GET /api/clients/:id returns null internalNote for client without note', async () => {
+      const created = await Client.create({
+        name: 'No Note Detail',
+        email: 'nonotede@acme.com',
+        status: 'active'
+      });
+
+      const res = await request(app)
+        .get(`/api/clients/${created.id}`)
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.internalNote).toBeNull();
+    });
+  });
 });

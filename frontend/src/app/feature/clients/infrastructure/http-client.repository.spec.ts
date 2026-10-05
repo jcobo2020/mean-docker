@@ -161,7 +161,8 @@ describe('HttpClientRepository — updateNote (WI-UX-NOTA-CLIENTE-001)', () => {
     let ok1 = false;
     repo.updateNote('c1', 'Nota primera').subscribe({ complete: () => (ok1 = true) });
     const req1 = http.expectOne((r) => r.url === '/api/clients/c1/note' && r.method === 'PATCH');
-    expect(req1.request.body).toEqual({ note: 'Nota primera' });
+    // El contrato MEAN-API-NOTA-CLIENTE-001 exige la clave `internalNote`, no `note`.
+    expect(req1.request.body).toEqual({ internalNote: 'Nota primera' });
     req1.flush({ status: 'success', data: {} });
     expect(ok1).toBe(true);
 
@@ -169,15 +170,16 @@ describe('HttpClientRepository — updateNote (WI-UX-NOTA-CLIENTE-001)', () => {
     let ok2 = false;
     repo.updateNote('c1', 'Nota segunda').subscribe({ complete: () => (ok2 = true) });
     const req2 = http.expectOne((r) => r.url === '/api/clients/c1/note' && r.method === 'PATCH');
-    expect(req2.request.body).toEqual({ note: 'Nota segunda' });
+    expect(req2.request.body).toEqual({ internalNote: 'Nota segunda' });
     req2.flush({ status: 'success', data: {} });
     expect(ok2).toBe(true);
   });
 
-  it('updateNote con nota null envía { note: null } para eliminar la nota', () => {
+  it('updateNote con nota null envía { internalNote: null } para eliminar la nota (MEAN-API-NOTA-CLIENTE-001)', () => {
+    // El campo del cuerpo es `internalNote`, no `note` (contrato MEAN-API-NOTA-CLIENTE-001).
     repo.updateNote('c2', null).subscribe();
     const req = http.expectOne((r) => r.url === '/api/clients/c2/note' && r.method === 'PATCH');
-    expect(req.request.body).toEqual({ note: null });
+    expect(req.request.body).toEqual({ internalNote: null });
     req.flush({ status: 'success', data: {} });
   });
 
@@ -185,6 +187,17 @@ describe('HttpClientRepository — updateNote (WI-UX-NOTA-CLIENTE-001)', () => {
     repo.updateNote('abc', 'texto').subscribe();
     const req = http.expectOne('/api/clients/abc/note');
     expect(req.request.method).toBe('PATCH');
+    req.flush({ status: 'success', data: {} });
+  });
+
+  it('updateNote envía el campo como `internalNote` (no `note`): contrato MEAN-API-NOTA-CLIENTE-001', () => {
+    // Regresión: una versión anterior enviaba { note } en vez de { internalNote } y el backend
+    // ignoraba el campo (o devolvía 400). Este test ancla el nombre de la clave al contrato.
+    repo.updateNote('x1', 'Mi nota').subscribe();
+    const req = http.expectOne('/api/clients/x1/note');
+    expect('internalNote' in req.request.body).toBe(true);
+    expect('note' in req.request.body).toBe(false);
+    expect(req.request.body.internalNote).toBe('Mi nota');
     req.flush({ status: 'success', data: {} });
   });
 

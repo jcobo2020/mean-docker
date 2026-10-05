@@ -12,7 +12,8 @@ import {
   validateCreateClient,
   validateClientId,
   validateCountClients,
-  validateListClients
+  validateListClients,
+  validateUpdateClientNote
 } from '../validators/client.validators';
 
 const router = Router();
@@ -156,6 +157,15 @@ router
     requireAdmin,
     validateClientId,
     ClientController.reactivate
+  );
+
+router
+  .route('/clients/:id/note')
+  .patch(
+    authenticate,
+    attachAuthenticatedUser,
+    validateUpdateClientNote,
+    ClientController.updateNote
   );
 
 router
