@@ -7,10 +7,10 @@
  *   - MEAN-DM-NOTA-CLIENTE-001: campo internalNote (String, opcional, maxLength 280, default null) en clients.
  *   - MEAN-UX-NOTA-CLIENTE-001: la pantalla /clients edita la nota y la lee de vuelta.
  * Y dos reglas del agrupador:
- *   - RN-02: el listado (toPublicClient) NO trae la nota; se lee en el detalle.
+ *   - RN-02 (v4): el listado (toPublicClient, por lista blanca explícita) trae la nota de cada fila, y el detalle también.
  *   - un cliente previo, sin la clave, se lee con internalNote null.
  *
- * El flujo es el de la pantalla: guardar → leer en el detalle → vaciar. No sustituye a los
+ * El flujo es el de la pantalla: guardar → leer en el listado y en el detalle → vaciar. No sustituye a los
  * tests unitarios de cada capa, que viven en su spec.
  */
 import mongoose from 'mongoose';
@@ -76,13 +76,15 @@ describe('E2E · nota interna del cliente (WI-FN-NOTA-CLIENTE-001)', () => {
     expect(res.body.data.internalNote).toBe('segunda');
   });
 
-  it('el listado no trae la nota: se lee en el detalle (RN-02)', async () => {
+  it('el listado trae la nota de cada fila, y null si no la tiene (RN-02 v4)', async () => {
     const c = await nuevoCliente();
-    await patch(c.id, { internalNote: 'privada del equipo' });
+    await Client.create({ name: 'Sin nota', email: 'sin-nota@acme.com', status: 'active' });
+    await patch(c.id, { internalNote: 'llamar por la tarde' });
     const res = await request(app).get('/api/clients').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.items).toHaveLength(1);
-    expect(res.body.data.items[0]).not.toHaveProperty('internalNote');
+    const porNombre = Object.fromEntries(res.body.data.items.map((i: { name: string; internalNote: unknown }) => [i.name, i]));
+    expect(porNombre['Acme'].internalNote).toBe('llamar por la tarde');
+    expect(porNombre['Sin nota'].internalNote).toBeNull();
   });
 
   it('vaciar con null o con texto vacío deja internalNote null', async () => {
